@@ -1,0 +1,80 @@
+# A real, working example, from LIFEWORLD (d:\3d) — the project this idea
+# came out of. See docs/02-what-we-build.md "Full example (LIFEWORLD)".
+#
+# Every rule here maps to an actual sentence in that repo's app/CLAUDE.md.
+# Copy this file to a repo root as holdfast.yaml and edit the paths/messages
+# to match your own project.
+
+version: 1
+
+defaults:
+  mode: warn             # off | warn | block
+  allowOverride: true    # can a line opt out with a holdfast-ignore comment?
+
+rules:
+  # --- Command rules: run before a shell command -------------------------
+  - id: no-force-push
+    type: command
+    match: 'git\s+push\b.*\s(--force|-f)\b'
+    mode: block
+    allowOverride: false
+    message: Never force-push. Ask the user instead.
+
+  - id: use-edit-tool
+    type: command
+    match: '\bsed\s+-i\b'
+    mode: block
+    message: Edit files with the edit tool, not `sed -i`, so changes can be reviewed.
+
+  # --- Line rules: run on the lines an edit added or removed -------------
+  - id: no-any
+    type: line
+    files: ['app/src/**/*.{ts,tsx}', 'web/**/*.{ts,tsx}']
+    added: '(:\s*any\b|\bas\s+any\b|<any>)'
+    mode: block
+    message: Don't use `any`. Use `unknown` and narrow it. (app/CLAUDE.md §13)
+
+  - id: no-hex-colors-in-components
+    type: line
+    files: ['app/src/components/**/*.tsx']
+    added: '#[0-9a-fA-F]{3,8}\b'
+    message: Colors come from `constants/theme.ts`, not literals. (app/CLAUDE.md §7)
+
+  - id: no-banned-libraries
+    type: line
+    files: ['app/src/**/*.{ts,tsx}']
+    added: "from\\s+['\"](moment|lodash|axios)['\"/]"
+    mode: block
+    message: moment, lodash and axios are banned. Use Intl, native methods, fetch. (app/CLAUDE.md §3)
+
+  # --- Boundary rules: which folders may import which ---------------------
+  - id: components-stay-presentational
+    type: boundary
+    from: 'app/src/components/**'
+    disallow: ['@/repositories', '@/store', '@/features']
+    mode: block
+    message: Components are presentational. Pass data in as props. (app/CLAUDE.md §4)
+
+  # --- Test guard: protects tests from being weakened --------------------
+  - id: keep-tests-honest
+    type: test-guard
+    files: ['**/*.test.{ts,tsx}']
+    mode: block
+    allowOverride: false
+
+  # --- Checker rules: run a real tool and hand its errors to the agent ---
+  # NOTE: checker rules are not executed by this build yet (see the root
+  # README's status table) — parsed and validated, but not run.
+  - id: app-typecheck
+    type: checker
+    when: ['app/src/**/*.{ts,tsx}']
+    run: npm run typecheck
+    cwd: app
+    on: stop             # stop (default) | edit
+    mode: block
+
+  # --- Prose rules: run on the agent's final message ---------------------
+  - id: no-filler-words
+    type: prose
+    match: '\b(load-bearing|delve|seamlessly)\b'
+    message: Say it plainly.

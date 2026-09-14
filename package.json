@@ -1,0 +1,42 @@
+{
+  "name": "holdfast",
+  "version": "0.0.1",
+  "description": "Enforce your project's rules while an AI agent works — in Claude Code, Codex and Gemini CLI — and again in CI.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "holdfast": "dist/holdfast.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "esbuild src/cli/main.ts --bundle --platform=node --target=node22 --format=cjs --banner:js=\"#!/usr/bin/env node\" --outfile=dist/holdfast.cjs",
+    "typecheck": "tsc",
+    "lint": "eslint src test --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+  },
+  "dependencies": {
+    "diff": "^8.0.2",
+    "picomatch": "^4.0.3",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/diff": "^8.0.0",
+    "@types/node": "^22.15.0",
+    "@types/picomatch": "^4.0.2",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^3.2.0"
+  }
+}
