@@ -96,4 +96,12 @@ you've lost a week, not two months.
 | **Stage** | Plan written. No code yet |
 | **Next step** | Milestone 0 — the one-week proof on LIFEWORLD |
 | **Research date** | 14 September 2026. Star counts, issue reactions and agent features change fast; re-check before launch |
-| **Where the code will live** | Its own GitHub repo, not inside LIFEWORLD. This folder is the plan only |
+| **Where the code lives** | github.com/inbuilt-aura/rulekeep (private until the step 5 of the release runbook) |
+
+## After the build: using it and shipping it
+
+- [`09-dogfooding.md`](./09-dogfooding.md) — install it into a real Claude Code
+  session, capture what Claude Code actually sends, and log false alarms. This
+  is the gate on v0.1.0.
+- [`10-release-runbook.md`](./10-release-runbook.md) — step by step from
+  "captures pass" to published on npm and installable by a stranger.

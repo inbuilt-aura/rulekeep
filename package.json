@@ -1,6 +1,6 @@
 {
   "name": "rulekeep",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Enforce your project's rules while an AI agent works — in Claude Code, Codex and Gemini CLI — and again in CI.",
   "license": "Apache-2.0",
   "repository": {

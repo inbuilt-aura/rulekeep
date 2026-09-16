@@ -31,6 +31,15 @@ describe('plugin manifest', () => {
     expect(manifest.license).toBe('Apache-2.0');
   });
 
+  it('carries the same version as the npm package', () => {
+    // Claude Code decides an update exists from the plugin manifest's version.
+    // If npm and the manifest disagree, "which version am I running?" has two
+    // answers and neither is trustworthy.
+    const manifest = readJson<{ version: string }>('plugins/claude-code/.claude-plugin/plugin.json');
+    const pkg = readJson<{ version: string }>('package.json');
+    expect(manifest.version).toBe(pkg.version);
+  });
+
   it('is listed by the repo-root marketplace file, pointing at a folder that exists', () => {
     const marketplace = readJson<{ plugins: readonly { name: string; source: string }[] }>('.claude-plugin/marketplace.json');
     const entry = marketplace.plugins.find((plugin) => plugin.name === 'rulekeep');
