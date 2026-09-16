@@ -71,3 +71,42 @@ describe('checkBoundaryRule', () => {
     expect(checkBoundaryRule(rule, afterEdit([change]))).toEqual([]);
   });
 });
+
+describe('checkBoundaryRule — disallow entries written as globs', () => {
+  // A glob is the natural thing to reach for, and matching it literally makes
+  // the rule silently never fire — which looks exactly like "no violations".
+  const globRule = (disallow: readonly string[]): BoundaryRule => ({
+    ...rule,
+    matchesPath: (path) => path.startsWith('src/components/'),
+    disallow,
+  });
+
+  const importing = (specifier: string): RulekeepEvent => ({
+    kind: 'after-edit',
+    agent: 'claude-code',
+    sessionId: 's1',
+    repoRoot: '/repo',
+    changes: [{ path: 'src/components/List.ts', before: null, after: `import { q } from '${specifier}';\n` }],
+  });
+
+  it('matches a relative import through a glob', () => {
+    expect(checkBoundaryRule(globRule(['**/db/**']), importing('../db/client'))).toHaveLength(1);
+  });
+
+  it('matches a deeper relative path through the same glob', () => {
+    expect(checkBoundaryRule(globRule(['**/db/**']), importing('../../db/pg/pool'))).toHaveLength(1);
+  });
+
+  it('does not match an unrelated import', () => {
+    expect(checkBoundaryRule(globRule(['**/db/**']), importing('../utils/format'))).toEqual([]);
+  });
+
+  it('still honours a plain literal prefix, with no glob syntax', () => {
+    expect(checkBoundaryRule(globRule(['@/repositories']), importing('@/repositories/user'))).toHaveLength(1);
+    expect(checkBoundaryRule(globRule(['@/repositories']), importing('@/repos'))).toEqual([]);
+  });
+
+  it('matches a bare package name by glob', () => {
+    expect(checkBoundaryRule(globRule(['pg', 'mysql*']), importing('mysql2'))).toHaveLength(1);
+  });
+});

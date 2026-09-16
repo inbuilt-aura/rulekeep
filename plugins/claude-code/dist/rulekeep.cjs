@@ -350,7 +350,7 @@ var require_scan = __commonJS({
       let lastIndex = 0;
       let isBrace = false;
       let isBracket = false;
-      let isGlob = false;
+      let isGlob2 = false;
       let isExtglob = false;
       let isGlobstar = false;
       let braceEscaped = false;
@@ -393,7 +393,7 @@ var require_scan = __commonJS({
             }
             if (braceEscaped !== true && code === CHAR_DOT && (code = advance()) === CHAR_DOT) {
               isBrace = token.isBrace = true;
-              isGlob = token.isGlob = true;
+              isGlob2 = token.isGlob = true;
               finished = true;
               if (scanToEnd === true) {
                 continue;
@@ -402,7 +402,7 @@ var require_scan = __commonJS({
             }
             if (braceEscaped !== true && code === CHAR_COMMA) {
               isBrace = token.isBrace = true;
-              isGlob = token.isGlob = true;
+              isGlob2 = token.isGlob = true;
               finished = true;
               if (scanToEnd === true) {
                 continue;
@@ -439,7 +439,7 @@ var require_scan = __commonJS({
         if (opts.noext !== true) {
           const isExtglobChar = code === CHAR_PLUS || code === CHAR_AT || code === CHAR_ASTERISK || code === CHAR_QUESTION_MARK || code === CHAR_EXCLAMATION_MARK;
           if (isExtglobChar === true && peek() === CHAR_LEFT_PARENTHESES) {
-            isGlob = token.isGlob = true;
+            isGlob2 = token.isGlob = true;
             isExtglob = token.isExtglob = true;
             finished = true;
             if (code === CHAR_EXCLAMATION_MARK && index === start) {
@@ -469,7 +469,7 @@ var require_scan = __commonJS({
         }
         if (code === CHAR_ASTERISK) {
           if (prev === CHAR_ASTERISK) isGlobstar = token.isGlobstar = true;
-          isGlob = token.isGlob = true;
+          isGlob2 = token.isGlob = true;
           finished = true;
           if (scanToEnd === true) {
             continue;
@@ -477,7 +477,7 @@ var require_scan = __commonJS({
           break;
         }
         if (code === CHAR_QUESTION_MARK) {
-          isGlob = token.isGlob = true;
+          isGlob2 = token.isGlob = true;
           finished = true;
           if (scanToEnd === true) {
             continue;
@@ -493,7 +493,7 @@ var require_scan = __commonJS({
             }
             if (next === CHAR_RIGHT_SQUARE_BRACKET) {
               isBracket = token.isBracket = true;
-              isGlob = token.isGlob = true;
+              isGlob2 = token.isGlob = true;
               finished = true;
               break;
             }
@@ -509,7 +509,7 @@ var require_scan = __commonJS({
           continue;
         }
         if (opts.noparen !== true && code === CHAR_LEFT_PARENTHESES) {
-          isGlob = token.isGlob = true;
+          isGlob2 = token.isGlob = true;
           if (scanToEnd === true) {
             let parens = 1;
             while (eos() !== true && (code = advance())) {
@@ -531,7 +531,7 @@ var require_scan = __commonJS({
           }
           break;
         }
-        if (isGlob === true) {
+        if (isGlob2 === true) {
           finished = true;
           if (scanToEnd === true) {
             continue;
@@ -541,7 +541,7 @@ var require_scan = __commonJS({
       }
       if (opts.noext === true) {
         isExtglob = false;
-        isGlob = false;
+        isGlob2 = false;
       }
       let base = str;
       let prefix = "";
@@ -551,10 +551,10 @@ var require_scan = __commonJS({
         str = str.slice(start);
         lastIndex -= start;
       }
-      if (base && isGlob === true && lastIndex > 0) {
+      if (base && isGlob2 === true && lastIndex > 0) {
         base = str.slice(0, lastIndex);
         glob = str.slice(lastIndex);
-      } else if (isGlob === true) {
+      } else if (isGlob2 === true) {
         base = "";
         glob = str;
       } else {
@@ -579,7 +579,7 @@ var require_scan = __commonJS({
         glob,
         isBrace,
         isBracket,
-        isGlob,
+        isGlob: isGlob2,
         isExtglob,
         isGlobstar,
         negated,
@@ -1654,9 +1654,9 @@ var require_picomatch = __commonJS({
     var utils = require_utils();
     var constants = require_constants();
     var isObject = (val) => val && typeof val === "object" && !Array.isArray(val);
-    var picomatch2 = (glob, options, returnState = false) => {
+    var picomatch3 = (glob, options, returnState = false) => {
       if (Array.isArray(glob)) {
-        const fns = glob.map((input) => picomatch2(input, options, returnState));
+        const fns = glob.map((input) => picomatch3(input, options, returnState));
         const arrayMatcher = (str) => {
           for (const isMatch of fns) {
             const state2 = isMatch(str);
@@ -1672,16 +1672,16 @@ var require_picomatch = __commonJS({
       }
       const opts = options || {};
       const posix = opts.windows;
-      const regex = isState ? picomatch2.compileRe(glob, options) : picomatch2.makeRe(glob, options, false, true);
+      const regex = isState ? picomatch3.compileRe(glob, options) : picomatch3.makeRe(glob, options, false, true);
       const state = regex.state;
       delete regex.state;
       let isIgnored = () => false;
       if (opts.ignore) {
         const ignoreOpts = { ...options, ignore: null, onMatch: null, onResult: null };
-        isIgnored = picomatch2(opts.ignore, ignoreOpts, returnState);
+        isIgnored = picomatch3(opts.ignore, ignoreOpts, returnState);
       }
       const matcher = (input, returnObject = false) => {
-        const { isMatch, match, output } = picomatch2.test(input, regex, options, { glob, posix });
+        const { isMatch, match, output } = picomatch3.test(input, regex, options, { glob, posix });
         const result = { glob, state, regex, posix, input, output, match, isMatch };
         if (typeof opts.onResult === "function") {
           opts.onResult(result);
@@ -1707,7 +1707,7 @@ var require_picomatch = __commonJS({
       }
       return matcher;
     };
-    picomatch2.test = (input, regex, options, { glob, posix } = {}) => {
+    picomatch3.test = (input, regex, options, { glob, posix } = {}) => {
       if (typeof input !== "string") {
         throw new TypeError("Expected input to be a string");
       }
@@ -1724,24 +1724,24 @@ var require_picomatch = __commonJS({
       }
       if (match === false || opts.capture === true) {
         if (opts.matchBase === true || opts.basename === true) {
-          match = picomatch2.matchBase(input, regex, options, posix);
+          match = picomatch3.matchBase(input, regex, options, posix);
         } else {
           match = regex.exec(output);
         }
       }
       return { isMatch: Boolean(match), match, output };
     };
-    picomatch2.matchBase = (input, glob, options, posix = options && options.windows) => {
-      const regex = glob instanceof RegExp ? glob : picomatch2.makeRe(glob, options);
+    picomatch3.matchBase = (input, glob, options, posix = options && options.windows) => {
+      const regex = glob instanceof RegExp ? glob : picomatch3.makeRe(glob, options);
       return regex.test(utils.basename(input, { windows: posix }));
     };
-    picomatch2.isMatch = (str, patterns, options) => picomatch2(patterns, options)(str);
-    picomatch2.parse = (pattern, options) => {
-      if (Array.isArray(pattern)) return pattern.map((p) => picomatch2.parse(p, options));
+    picomatch3.isMatch = (str, patterns, options) => picomatch3(patterns, options)(str);
+    picomatch3.parse = (pattern, options) => {
+      if (Array.isArray(pattern)) return pattern.map((p) => picomatch3.parse(p, options));
       return parse(pattern, { ...options, fastpaths: false });
     };
-    picomatch2.scan = (input, options) => scan(input, options);
-    picomatch2.compileRe = (state, options, returnOutput = false, returnState = false) => {
+    picomatch3.scan = (input, options) => scan(input, options);
+    picomatch3.compileRe = (state, options, returnOutput = false, returnState = false) => {
       if (returnOutput === true) {
         return state.output;
       }
@@ -1752,13 +1752,13 @@ var require_picomatch = __commonJS({
       if (state && state.negated === true) {
         source = `^(?!${source}).*$`;
       }
-      const regex = picomatch2.toRegex(source, options);
+      const regex = picomatch3.toRegex(source, options);
       if (returnState === true) {
         regex.state = state;
       }
       return regex;
     };
-    picomatch2.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
+    picomatch3.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
       if (!input || typeof input !== "string") {
         throw new TypeError("Expected a non-empty string");
       }
@@ -1769,9 +1769,9 @@ var require_picomatch = __commonJS({
       if (!parsed.output) {
         parsed = parse(input, options);
       }
-      return picomatch2.compileRe(parsed, options, returnOutput, returnState);
+      return picomatch3.compileRe(parsed, options, returnOutput, returnState);
     };
-    picomatch2.toRegex = (source, options) => {
+    picomatch3.toRegex = (source, options) => {
       try {
         const opts = options || {};
         return new RegExp(source, opts.flags || (opts.nocase ? "i" : ""));
@@ -1780,8 +1780,8 @@ var require_picomatch = __commonJS({
         return /$^/;
       }
     };
-    picomatch2.constants = constants;
-    module2.exports = picomatch2;
+    picomatch3.constants = constants;
+    module2.exports = picomatch3;
   }
 });
 
@@ -1791,14 +1791,14 @@ var require_picomatch2 = __commonJS({
     "use strict";
     var pico = require_picomatch();
     var utils = require_utils();
-    function picomatch2(glob, options, returnState = false) {
+    function picomatch3(glob, options, returnState = false) {
       if (options && (options.windows === null || options.windows === void 0)) {
         options = { ...options, windows: utils.isWindows() };
       }
       return pico(glob, options, returnState);
     }
-    Object.assign(picomatch2, pico);
-    module2.exports = picomatch2;
+    Object.assign(picomatch3, pico);
+    module2.exports = picomatch3;
   }
 });
 
@@ -9141,6 +9141,9 @@ function outcomeOf(findings) {
   return "allow";
 }
 
+// src/engine/rules/boundary.ts
+var import_picomatch2 = __toESM(require_picomatch2(), 1);
+
 // src/engine/config.ts
 var import_picomatch = __toESM(require_picomatch2(), 1);
 var import_yaml = __toESM(require_dist(), 1);
@@ -9157,10 +9160,18 @@ function lineOf(doc, node) {
   const before = doc.toString().slice(0, range[0]);
   return before.split("\n").length;
 }
+function toGlobList(value) {
+  if (typeof value === "string") return value.trim().length > 0 ? [value] : void 0;
+  if (!Array.isArray(value)) return void 0;
+  const globs = value.filter((entry) => typeof entry === "string");
+  return globs.length > 0 ? globs : void 0;
+}
 function compileGlobs(files, exclude) {
-  if (files === void 0 && exclude === void 0) return void 0;
-  const included = Array.isArray(files) && files.length > 0 ? (0, import_picomatch.default)(files) : () => true;
-  const excluded = Array.isArray(exclude) && exclude.length > 0 ? (0, import_picomatch.default)(exclude) : () => false;
+  const includeGlobs = toGlobList(files);
+  const excludeGlobs = toGlobList(exclude);
+  if (includeGlobs === void 0 && excludeGlobs === void 0) return void 0;
+  const included = includeGlobs ? (0, import_picomatch.default)(includeGlobs) : () => true;
+  const excluded = excludeGlobs ? (0, import_picomatch.default)(excludeGlobs) : () => false;
   return (path) => included(path) && !excluded(path);
 }
 function compileRegex(source, errors, line, field) {
@@ -9227,7 +9238,8 @@ function parseConfig(source) {
     }
     const mode = MODES.includes(rule.mode) ? rule.mode : defaultMode;
     const allowOverride = typeof rule.allowOverride === "boolean" ? rule.allowOverride : defaultAllowOverride;
-    const matchesPath = compileGlobs(rule.files, rule.exclude);
+    const scope = rule.files ?? rule.from;
+    const matchesPath = compileGlobs(scope, rule.exclude);
     const needsMessage = type === "command" || type === "line" || type === "boundary" || type === "prose";
     const message = typeof rule.message === "string" && rule.message.trim().length > 0 ? rule.message : void 0;
     if (needsMessage && !message) {
@@ -9605,11 +9617,18 @@ function findOverride(ruleId, lines, lineNumber) {
 
 // src/engine/rules/boundary.ts
 var IMPORT_SPECIFIER = /(?:from\s+|require\()\s*['"]([^'"]+)['"]/;
+var isGlob = (value) => /[*?[\]{}!]/.test(value);
 function specifierOf(line) {
   return IMPORT_SPECIFIER.exec(line)?.[1];
 }
 function isDisallowed(specifier, disallow) {
-  return disallow.some((prefix) => specifier === prefix || specifier.startsWith(`${prefix}/`));
+  const withoutTraversal = specifier.replace(/^(?:\.{1,2}\/)+/, "");
+  return disallow.some((entry) => {
+    if (specifier === entry || specifier.startsWith(`${entry}/`)) return true;
+    if (!isGlob(entry)) return false;
+    const matches = (0, import_picomatch2.default)(entry);
+    return matches(specifier) || matches(withoutTraversal);
+  });
 }
 function checkBoundaryRule(rule, event) {
   if (event.kind !== "after-edit" && event.kind !== "stop" || rule.mode === "off") return [];

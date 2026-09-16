@@ -88,10 +88,21 @@ function lineOf(doc: Document, node: unknown): number {
   return before.split('\n').length;
 }
 
+/** Accepts a single glob string or a list of them, so `from: 'src/**'` works as well as `files: ['src/**']`. */
+function toGlobList(value: unknown): readonly string[] | undefined {
+  if (typeof value === 'string') return value.trim().length > 0 ? [value] : undefined;
+  if (!Array.isArray(value)) return undefined;
+  const globs = value.filter((entry): entry is string => typeof entry === 'string');
+  return globs.length > 0 ? globs : undefined;
+}
+
 function compileGlobs(files: unknown, exclude: unknown): ((path: string) => boolean) | undefined {
-  if (files === undefined && exclude === undefined) return undefined;
-  const included = Array.isArray(files) && files.length > 0 ? picomatch(files as string[]) : () => true;
-  const excluded = Array.isArray(exclude) && exclude.length > 0 ? picomatch(exclude as string[]) : () => false;
+  const includeGlobs = toGlobList(files);
+  const excludeGlobs = toGlobList(exclude);
+  if (includeGlobs === undefined && excludeGlobs === undefined) return undefined;
+
+  const included = includeGlobs ? picomatch(includeGlobs as string[]) : () => true;
+  const excluded = excludeGlobs ? picomatch(excludeGlobs as string[]) : () => false;
   return (path: string) => included(path) && !excluded(path);
 }
 
@@ -173,7 +184,12 @@ export function parseConfig(source: string): ConfigResult {
 
     const mode = MODES.includes(rule.mode as RuleMode) ? (rule.mode as RuleMode) : defaultMode;
     const allowOverride = typeof rule.allowOverride === 'boolean' ? rule.allowOverride : defaultAllowOverride;
-    const matchesPath = compileGlobs(rule.files, rule.exclude);
+    // `from` is the documented spelling for a boundary rule's scope
+    // (docs/02-what-we-build.md "3. boundary"); `files` is the general one.
+    // Accept either, for any rule type, rather than silently ignoring one and
+    // applying the rule to the whole repo.
+    const scope = rule.files ?? rule.from;
+    const matchesPath = compileGlobs(scope, rule.exclude);
 
     const needsMessage = type === 'command' || type === 'line' || type === 'boundary' || type === 'prose';
     const message = typeof rule.message === 'string' && rule.message.trim().length > 0 ? rule.message : undefined;

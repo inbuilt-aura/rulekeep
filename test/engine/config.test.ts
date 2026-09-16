@@ -286,3 +286,69 @@ describe('checker timeoutSeconds validation', () => {
     }
   });
 });
+
+describe('rule scope: files and from', () => {
+  const scoped = (yaml: string) => {
+    const result = parseConfig(yaml);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.errors.map((e) => e.message).join('\n'));
+    return result.config.rules[0]!;
+  };
+
+  it('honours `from` on a boundary rule, the spelling the docs use', () => {
+    // `from` appears in docs/02-what-we-build.md and in the shipped example.
+    // Ignoring it silently widened the rule to every file in the repo.
+    const rule = scoped(`
+version: 1
+rules:
+  - id: b
+    type: boundary
+    from: 'src/components/**'
+    disallow: ['@/db']
+    message: no db
+`);
+    expect(rule.matchesPath).toBeDefined();
+    expect(rule.matchesPath?.('src/components/Card.ts')).toBe(true);
+    expect(rule.matchesPath?.('src/server/handler.ts')).toBe(false);
+  });
+
+  it('accepts `from` written as a list too', () => {
+    const rule = scoped(`
+version: 1
+rules:
+  - id: b
+    type: boundary
+    from: ['src/components/**', 'src/widgets/**']
+    disallow: ['@/db']
+    message: no db
+`);
+    expect(rule.matchesPath?.('src/widgets/Chip.ts')).toBe(true);
+    expect(rule.matchesPath?.('src/server/handler.ts')).toBe(false);
+  });
+
+  it('accepts a single glob string for `files`, not only a list', () => {
+    const rule = scoped(`
+version: 1
+rules:
+  - id: l
+    type: line
+    files: 'src/**/*.ts'
+    added: 'TODO'
+    message: no todos
+`);
+    expect(rule.matchesPath?.('src/a.ts')).toBe(true);
+    expect(rule.matchesPath?.('docs/a.ts')).toBe(false);
+  });
+
+  it('leaves a rule unscoped when neither is given', () => {
+    const rule = scoped(`
+version: 1
+rules:
+  - id: l
+    type: line
+    added: 'TODO'
+    message: no todos
+`);
+    expect(rule.matchesPath).toBeUndefined();
+  });
+});
