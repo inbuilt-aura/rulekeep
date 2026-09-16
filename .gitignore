@@ -8,3 +8,8 @@ dist/
 
 # Written by `claude plugin eval` (docs/05-testing.md).
 evals/results/
+
+# Hook payloads captured during a dogfooding session (docs/09-dogfooding.md).
+# They contain local file paths and the agent's own messages.
+.captures/
+*.captures/
