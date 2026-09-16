@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LineRule } from '../../../src/engine/config.js';
-import type { FileChange, HoldfastEvent } from '../../../src/engine/events.js';
+import type { FileChange, RulekeepEvent } from '../../../src/engine/events.js';
 import { checkLineRule } from '../../../src/engine/rules/line.js';
 
 const rule = (overrides: Partial<LineRule> = {}): LineRule => ({
@@ -14,7 +14,7 @@ const rule = (overrides: Partial<LineRule> = {}): LineRule => ({
   ...overrides,
 });
 
-const afterEdit = (changes: readonly FileChange[]): HoldfastEvent => ({
+const afterEdit = (changes: readonly FileChange[]): RulekeepEvent => ({
   kind: 'after-edit',
   agent: 'claude-code',
   sessionId: 's1',
@@ -57,7 +57,7 @@ describe('checkLineRule', () => {
     const change: FileChange = {
       path: 'app/src/utils/parse.ts',
       before: '',
-      after: 'const raw = JSON.parse(text) as any; // holdfast-ignore no-any: third-party JSON, validated below\n',
+      after: 'const raw = JSON.parse(text) as any; // rulekeep-ignore no-any: third-party JSON, validated below\n',
     };
     const findings = checkLineRule(rule(), afterEdit([change]));
     expect(findings).toHaveLength(1);
@@ -68,7 +68,7 @@ describe('checkLineRule', () => {
     const change: FileChange = {
       path: 'app/src/utils/parse.ts',
       before: '',
-      after: 'const raw = x as any; // holdfast-ignore no-any\n',
+      after: 'const raw = x as any; // rulekeep-ignore no-any\n',
     };
     const findings = checkLineRule(rule(), afterEdit([change]));
     expect(findings).toHaveLength(1);
@@ -79,7 +79,7 @@ describe('checkLineRule', () => {
     const change: FileChange = {
       path: 'app/src/utils/parse.ts',
       before: '',
-      after: 'const raw = x as any; // holdfast-ignore no-any: reason\n',
+      after: 'const raw = x as any; // rulekeep-ignore no-any: reason\n',
     };
     const findings = checkLineRule(rule({ allowOverride: false }), afterEdit([change]));
     expect(findings).toHaveLength(1);
@@ -114,7 +114,7 @@ describe('checkLineRule', () => {
       before: null,
       after: 'export const x = y as any;\n',
     };
-    const stopEvent: HoldfastEvent = {
+    const stopEvent: RulekeepEvent = {
       kind: 'stop',
       agent: 'claude-code',
       sessionId: 's1',

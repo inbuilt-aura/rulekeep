@@ -4,9 +4,9 @@
  * the "load-bearing" issue in docs/01-why.md.
  */
 import type { ProseRule } from '../config.js';
-import type { Finding, HoldfastEvent } from '../events.js';
+import type { Finding, RulekeepEvent } from '../events.js';
 
-export function checkProseRule(rule: ProseRule, event: HoldfastEvent): readonly Finding[] {
+export function checkProseRule(rule: ProseRule, event: RulekeepEvent): readonly Finding[] {
   if (event.kind !== 'stop' || rule.mode === 'off') return [];
   if (event.finalMessage === null || !rule.match.test(event.finalMessage)) return [];
 

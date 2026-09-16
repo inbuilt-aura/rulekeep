@@ -1,5 +1,5 @@
 /**
- * `holdfast check` — the CI backstop (docs/03-architecture.md "CI mode").
+ * `rulekeep check` — the CI backstop (docs/03-architecture.md "CI mode").
  * Runs the same rules as the agent hooks over every file changed since a
  * base ref, so a rule broken by any agent, or a human, is still caught
  * before merge. Command and prose rules are skipped: there's no agent
@@ -11,7 +11,7 @@
  * flow exists to protect a developer's machine, which is not this.
  */
 import { evaluate } from '../engine/evaluate.js';
-import type { Finding, HoldfastEvent } from '../engine/events.js';
+import type { Finding, RulekeepEvent } from '../engine/events.js';
 import { formatVerdict } from '../engine/format.js';
 import { runCheckers } from '../runtime/checker.js';
 import { loadConfig } from '../runtime/configFile.js';
@@ -40,14 +40,14 @@ export function runCheck(options: CheckOptions): CheckResult {
   const loaded = loadConfig(options.repoRoot);
   if (!loaded.ok) {
     if (loaded.path === undefined) {
-      return { exitCode: 0, output: 'holdfast: no holdfast.yaml found — nothing to check.' };
+      return { exitCode: 0, output: 'rulekeep: no rulekeep.yaml found — nothing to check.' };
     }
     const message = loaded.errors.map((e) => `  ${loaded.path}:${e.line}: ${e.message}`).join('\n');
-    return { exitCode: 2, output: `holdfast: holdfast.yaml is invalid:\n${message}` };
+    return { exitCode: 2, output: `rulekeep: rulekeep.yaml is invalid:\n${message}` };
   }
 
   const changes = changesSinceRef(options.repoRoot, options.base);
-  const event: HoldfastEvent = {
+  const event: RulekeepEvent = {
     kind: 'stop', // reuses the stop-time rule set: line, boundary, test-guard (docs/03-architecture.md "Which rules run when")
     agent: 'ci',
     sessionId: 'ci',
@@ -65,7 +65,7 @@ export function runCheck(options: CheckOptions): CheckResult {
       checkerResults = runCheckers(checkerRulesOf(loaded.config), event, options.repoRoot);
     } catch (cause) {
       checkerResults = [
-        { ruleId: 'holdfast', mode: 'warn', message: `checker rules could not run: ${(cause as Error).message}` },
+        { ruleId: 'rulekeep', mode: 'warn', message: `checker rules could not run: ${(cause as Error).message}` },
       ];
     }
   }
@@ -86,10 +86,10 @@ export function runCheck(options: CheckOptions): CheckResult {
   }
 
   if (active.length === 0 && overridden.length === 0) {
-    return { exitCode: 0, output: `holdfast: no rules broken across ${changes.length} changed file(s).` };
+    return { exitCode: 0, output: `rulekeep: no rules broken across ${changes.length} changed file(s).` };
   }
 
-  const parts = [formatVerdict(verdict, 'work') || 'holdfast: no active findings.'];
+  const parts = [formatVerdict(verdict, 'work') || 'rulekeep: no active findings.'];
   if (overridden.length > 0) {
     parts.push(
       '',

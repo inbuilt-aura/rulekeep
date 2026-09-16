@@ -6,7 +6,7 @@
  */
 import type { Finding, Verdict } from './events.js';
 
-const TOOL_NAME = 'holdfast';
+const TOOL_NAME = 'rulekeep';
 
 /** What the findings are about, which decides how the message is worded. */
 export type Subject = 'command' | 'edit' | 'work';
@@ -49,7 +49,7 @@ export function formatVerdict(verdict: Verdict, subject: Subject): string {
   const footer =
     verdict.outcome === 'block'
       ? `${SUBJECTS[subject].fix} If this is a genuine exception, add ` +
-        `\`// holdfast-ignore <rule-id>: <reason>\` on that line.`
+        `\`// rulekeep-ignore <rule-id>: <reason>\` on that line.`
       : '';
 
   return [header, '', body, footer].filter((part) => part !== '').join('\n');

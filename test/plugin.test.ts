@@ -25,7 +25,7 @@ interface HooksFile {
 describe('plugin manifest', () => {
   it('declares the fields the plugin directory needs', () => {
     const manifest = readJson<Record<string, unknown>>('plugins/claude-code/.claude-plugin/plugin.json');
-    expect(manifest.name).toBe('holdfast');
+    expect(manifest.name).toBe('rulekeep');
     expect(typeof manifest.version).toBe('string');
     expect(typeof manifest.description).toBe('string');
     expect(manifest.license).toBe('Apache-2.0');
@@ -33,7 +33,7 @@ describe('plugin manifest', () => {
 
   it('is listed by the repo-root marketplace file, pointing at a folder that exists', () => {
     const marketplace = readJson<{ plugins: readonly { name: string; source: string }[] }>('.claude-plugin/marketplace.json');
-    const entry = marketplace.plugins.find((plugin) => plugin.name === 'holdfast');
+    const entry = marketplace.plugins.find((plugin) => plugin.name === 'rulekeep');
     expect(entry).toBeDefined();
     expect(entry?.source).toBe('./plugins/claude-code');
     expect(exists('plugins/claude-code/.claude-plugin/plugin.json')).toBe(true);
@@ -45,11 +45,11 @@ describe('hooks.json', () => {
   const allEntries = Object.values(hooksFile.hooks).flat();
   const allHooks = allEntries.flatMap((entry) => entry.hooks);
 
-  it('wires all four events holdfast needs', () => {
+  it('wires all four events rulekeep needs', () => {
     expect(Object.keys(hooksFile.hooks).sort()).toEqual(['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop']);
   });
 
-  it('registers exactly one entry per event, so holdfast controls its own ordering', () => {
+  it('registers exactly one entry per event, so rulekeep controls its own ordering', () => {
     for (const [event, entries] of Object.entries(hooksFile.hooks)) {
       expect(entries, `${event} should have one entry`).toHaveLength(1);
     }
@@ -65,7 +65,7 @@ describe('hooks.json', () => {
 
   it('points every hook at the bundle the plugin actually ships', () => {
     for (const hook of allHooks) {
-      expect(hook.args?.[0]).toBe('${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs');
+      expect(hook.args?.[0]).toBe('${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs');
       expect(hook.args?.slice(1, 3)).toEqual(['hook', 'claude-code']);
     }
   });
@@ -112,14 +112,14 @@ describe('skills', () => {
     const frontmatter = source.split('---')[1] ?? '';
     expect(frontmatter).toContain(`name: ${skill}`);
     expect(frontmatter).toMatch(/description: \S/);
-    // These are user-invoked (/holdfast:setup), not things the model should
+    // These are user-invoked (/rulekeep:setup), not things the model should
     // fire on its own — especially `trust`, which approves running commands.
     expect(frontmatter).toContain('disable-model-invocation: true');
   });
 
   it('tells the trust skill to show the commands before approving them', () => {
     const source = read('plugins/claude-code/skills/trust/SKILL.md');
-    expect(source).toContain('holdfast trust --list');
-    expect(source).toContain('holdfast trust --revoke');
+    expect(source).toContain('rulekeep trust --list');
+    expect(source).toContain('rulekeep trust --revoke');
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Parses and validates holdfast.yaml (docs/02-what-we-build.md "The rules
+ * Parses and validates rulekeep.yaml (docs/02-what-we-build.md "The rules
  * file"). Never throws — every failure is a value, with a line number, so a
  * broken config fails open with a clear message instead of crashing a hook
  * (docs/03-architecture.md "Fail open").
@@ -118,7 +118,7 @@ export function parseConfig(source: string): ConfigResult {
 
   const root = doc.contents;
   if (!isMap(root)) {
-    return { ok: false, errors: [{ line: 1, message: 'holdfast.yaml must be a mapping at the top level.' }] };
+    return { ok: false, errors: [{ line: 1, message: 'rulekeep.yaml must be a mapping at the top level.' }] };
   }
 
   const rootJson = doc.toJS() as Record<string, unknown>;

@@ -1,6 +1,6 @@
 # 6. Publishing
 
-How to get holdfast from a repo on your machine to people's agents: the files
+How to get rulekeep from a repo on your machine to people's agents: the files
 the repo needs, how versions and releases work, how to list it for Claude Code,
 Codex and Gemini CLI, the npm package for CI, and the launch itself.
 
@@ -10,11 +10,11 @@ Codex and Gemini CLI, the npm package for CI, and the launch itself.
 
 | Where | How users install | How updates reach them |
 | --- | --- | --- |
-| **Claude Code** — your own marketplace | `/plugin marketplace add <you>/holdfast` then `/plugin install holdfast@holdfast` | When you bump `version` |
-| **Claude Code** — Anthropic's community marketplace | `/plugin install holdfast@claude-community` (after acceptance) | Anthropic's pin follows your commits |
+| **Claude Code** — your own marketplace | `/plugin marketplace add <you>/rulekeep` then `/plugin install rulekeep@rulekeep` | When you bump `version` |
+| **Claude Code** — Anthropic's community marketplace | `/plugin install rulekeep@claude-community` (after acceptance) | Anthropic's pin follows your commits |
 | **Codex** | See [Codex](#codex) | See below |
 | **Gemini CLI** | See [Gemini CLI](#gemini-cli) | See below |
-| **CI** | `npx holdfast@0 check --base origin/main` | `@0` follows the latest 0.x |
+| **CI** | `npx rulekeep@0 check --base origin/main` | `@0` follows the latest 0.x |
 
 Your GitHub repo is the single source for all of them.
 
@@ -23,7 +23,7 @@ Your GitHub repo is the single source for all of them.
 ## Repo layout at release
 
 ```
-holdfast/
+rulekeep/
   .claude-plugin/
     marketplace.json           ← makes the repo a Claude Code marketplace
   plugins/
@@ -32,12 +32,12 @@ holdfast/
       hooks/hooks.json
       skills/setup/SKILL.md  skills/trust/SKILL.md  skills/explain/SKILL.md
       evals/
-      dist/holdfast.cjs        ← committed (see below)
+      dist/rulekeep.cjs        ← committed (see below)
     codex/                     ← from v0.2
     gemini-cli/                ← from v0.3
   src/  test/                  ← the code
   examples/
-    lifeworld/holdfast.yaml    ← a real, working example
+    lifeworld/rulekeep.yaml    ← a real, working example
   .github/
     workflows/ci.yml  evals.yml  release.yml  canary.yml
     ISSUE_TEMPLATE/bug.yml  false-alarm.yml  rule-request.yml
@@ -46,7 +46,7 @@ holdfast/
   README.md  CHANGELOG.md  LICENSE  TRADEMARK.md  SECURITY.md  CONTRIBUTING.md
 ```
 
-### Why `dist/holdfast.cjs` is committed
+### Why `dist/rulekeep.cjs` is committed
 
 When someone installs a plugin, the agent **copies the plugin's files** from
 your repo. No build step runs. So the built file must be in the repo, inside each
@@ -56,7 +56,7 @@ plugin folder. CI checks the committed copy matches the source
 Add `.gitattributes` so Windows checkouts don't change its line endings:
 
 ```
-plugins/*/dist/holdfast.cjs  text eol=lf
+plugins/*/dist/rulekeep.cjs  text eol=lf
 ```
 
 ---
@@ -67,12 +67,12 @@ plugins/*/dist/holdfast.cjs  text eol=lf
 
 In this order:
 
-1. **One sentence** — "holdfast enforces your project's rules while AI agents
+1. **One sentence** — "rulekeep enforces your project's rules while AI agents
    work — in Claude Code, Codex and Gemini CLI — and again in CI."
 2. **A 20-second demo** (GIF or asciinema): the agent adds `.skip` to a failing
-   test, holdfast stops it, the agent fixes the real bug.
+   test, rulekeep stops it, the agent fixes the real bug.
 3. **Install**, one short block per agent.
-4. **A 10-line `holdfast.yaml`** example.
+4. **A 10-line `rulekeep.yaml`** example.
 5. **What it checks / what it can't check** — honest, side by side.
 6. **Does it help?** — the eval Δ table from the latest release.
 7. Links: full rule reference, CI setup, FAQ.
@@ -84,13 +84,13 @@ Apache-2.0 full text ([07-business.md](./07-business.md#the-licence-apache-20)).
 ### `TRADEMARK.md`
 
 Short: forks are welcome under the licence, but may not use the name
-"holdfast" or a confusingly similar name for a fork or a paid product.
+"rulekeep" or a confusingly similar name for a fork or a paid product.
 
 ### `SECURITY.md`
 
 - How to report a vulnerability privately (GitHub's private vulnerability
   reporting).
-- What holdfast does and doesn't do: runs locally, no network calls, runs
+- What rulekeep does and doesn't do: runs locally, no network calls, runs
   checker commands only after approval, not a security sandbox.
 
 ### `CHANGELOG.md`
@@ -102,7 +102,7 @@ One section per version. For every release include the **eval Δ** and any
 
 | Template | Asks for |
 | --- | --- |
-| **Bug** | Agent and version, OS, holdfast version, output of `holdfast doctor` |
+| **Bug** | Agent and version, OS, rulekeep version, output of `rulekeep doctor` |
 | **False alarm** | The rule (YAML), the line it fired on, why it's wrong. These are the most valuable reports — make them easy |
 | **Rule request** | The rule in plain words, where it's written today (CLAUDE.md etc.), an example of it being broken |
 
@@ -112,7 +112,7 @@ One section per version. For every release include the **eval Δ** and any
 
 **Semantic versioning.** Before 1.0: `0.MINOR.PATCH`, where a minor bump may
 change the rules format (with a migration note). From 1.0: breaking changes to
-`holdfast.yaml` only with `version: 2` in the file.
+`rulekeep.yaml` only with `version: 2` in the file.
 
 **One version number everywhere.** `package.json`, every plugin manifest and
 the changelog. A script keeps them in sync:
@@ -184,8 +184,8 @@ The repo's `.claude-plugin/marketplace.json`
 the repo installable immediately:
 
 ```
-/plugin marketplace add <you>/holdfast
-/plugin install holdfast@holdfast
+/plugin marketplace add <you>/rulekeep
+/plugin install rulekeep@rulekeep
 ```
 
 Rules for the marketplace file:
@@ -198,7 +198,7 @@ Rules for the marketplace file:
 
 ### Anthropic's community marketplace (from v0.3)
 
-Being listed makes holdfast installable without adding your repo first, and
+Being listed makes rulekeep installable without adding your repo first, and
 visible at [claude.com/plugins](https://claude.com/plugins).
 
 1. Make sure the repo is **public** (closed-source plugins aren't accepted).
@@ -210,9 +210,9 @@ visible at [claude.com/plugins](https://claude.com/plugins).
    and the catalog syncs nightly. Check the current docs for how the pin follows
    new commits before relying on it.
 
-Directory rules that apply to holdfast ([details](./07-business.md#rules-we-must-stay-inside)):
+Directory rules that apply to rulekeep ([details](./07-business.md#rules-we-must-stay-inside)):
 no fetching instructions from a server, no hidden instructions, no sponsored
-content. holdfast meets all three by design.
+content. rulekeep meets all three by design.
 
 **The official Anthropic marketplace** (`claude-plugins-official`) is curated by
 Anthropic — there's no application. Being in the community marketplace with real
@@ -226,19 +226,19 @@ usage is the path there.
 
 **Package:** `plugins/codex/` with `.codex-plugin/plugin.json`, the default
 `hooks/hooks.json` ([03-architecture.md](./03-architecture.md#codex)), the
-skills, and `dist/holdfast.cjs`.
+skills, and `dist/rulekeep.cjs`.
 
 **How users install:**
 
 ```bash
-codex plugin marketplace add <you>/holdfast
-codex plugin add holdfast@<marketplace-name>
+codex plugin marketplace add <you>/rulekeep
+codex plugin add rulekeep@<marketplace-name>
 ```
 
 (or `/plugins` inside Codex to browse and install). Then:
 
 1. **Start a new session** — Codex loads a plugin's skills and hooks there.
-2. Run `/hooks` and **trust** holdfast's hooks. Codex skips them until you do.
+2. Run `/hooks` and **trust** rulekeep's hooks. Codex skips them until you do.
 
 Codex reads a repo's marketplace from `.agents/plugins/marketplace.json` or
 `.claude-plugin/marketplace.json`. Give Codex its own
@@ -254,7 +254,7 @@ Things to put in the Codex install guide:
 - **Plugins don't work in the Codex IDE extension** — only in Codex CLI and the
   ChatGPT desktop app.
 - **The trust step**, with a screenshot and one line per hook explaining what it
-  does. Without this, people think holdfast is broken.
+  does. Without this, people think rulekeep is broken.
 - **Re-trust after updates** is only needed if the hook definitions changed.
   Keep `hooks.json` stable between releases so it rarely happens.
 
@@ -262,7 +262,7 @@ Things to put in the Codex install guide:
 [platform.openai.com/plugins](https://platform.openai.com/plugins), as "Skills
 only" or "With MCP", and need a verified identity, 5 positive and 3 negative test
 cases, and listing details. The submission flow doesn't mention hooks, so it's
-unclear whether a hooks-based plugin like holdfast can be listed. Until that's
+unclear whether a hooks-based plugin like rulekeep can be listed. Until that's
 confirmed, the install-from-GitHub commands above are the Codex distribution
 path.
 
@@ -274,13 +274,13 @@ path.
 
 **Package:** `plugins/gemini-cli/` with `gemini-extension.json` in its root,
 hooks in `hooks/hooks.json` (hooks are **not** declared in the manifest), and
-`dist/holdfast.cjs`. Use `${extensionPath}` to refer to files inside it.
+`dist/rulekeep.cjs`. Use `${extensionPath}` to refer to files inside it.
 
 Minimal `gemini-extension.json`:
 
 ```json
 {
-  "name": "holdfast",
+  "name": "rulekeep",
   "version": "0.3.0"
 }
 ```
@@ -290,17 +290,17 @@ Check the reference for any other fields you want (description, context files).
 **How users install:**
 
 ```bash
-gemini extensions install https://github.com/<you>/holdfast --auto-update
+gemini extensions install https://github.com/<you>/rulekeep --auto-update
 ```
 
 Gemini CLI expects the extension's `gemini-extension.json` at the root of the
-source it installs. Since holdfast keeps each agent's package in a subfolder,
+source it installs. Since rulekeep keeps each agent's package in a subfolder,
 either publish the Gemini package from a dedicated branch or release archive
 whose root is `plugins/gemini-cli/`, or check whether the install command accepts
 a subdirectory. Decide this in M6.
 
 **Updates:** installed extensions are copies. Users run
-`gemini extensions update holdfast` (or install with `--auto-update`). Changing
+`gemini extensions update rulekeep` (or install with `--auto-update`). Changing
 existing hook commands doesn't ask users for consent again.
 
 **Discovery:** add the `gemini-cli-extension` topic to the GitHub repo so it
@@ -320,9 +320,9 @@ The same repo publishes the CLI:
 
 ```json
 {
-  "name": "holdfast",
+  "name": "rulekeep",
   "version": "0.1.0",
-  "bin": { "holdfast": "dist/holdfast.cjs" },
+  "bin": { "rulekeep": "dist/rulekeep.cjs" },
   "files": ["dist", "README.md", "LICENSE"],
   "engines": { "node": ">=22" },
   "license": "Apache-2.0"
@@ -334,8 +334,8 @@ Add a shebang to the bundle with esbuild's `--banner:js="#!/usr/bin/env node"`.
 What users add to their CI:
 
 ```yaml
-# .github/workflows/holdfast.yml
-name: holdfast
+# .github/workflows/rulekeep.yml
+name: rulekeep
 on: pull_request
 jobs:
   check:
@@ -343,11 +343,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0          # holdfast needs the base branch to compare against
+          fetch-depth: 0          # rulekeep needs the base branch to compare against
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npx holdfast@0 check --base "origin/${{ github.base_ref }}" --format github
+      - run: npx rulekeep@0 check --base "origin/${{ github.base_ref }}" --format github
 ```
 
 ---
@@ -359,7 +359,7 @@ jobs:
 - [ ] Final name chosen and checked on npm, GitHub and the web (Q1)
 - [ ] v0.3 released: Claude Code, Codex, Gemini CLI all installable
 - [ ] README first screen done, with demo GIF and eval Δ
-- [ ] `examples/lifeworld/holdfast.yaml` works as a copy-paste starting point
+- [ ] `examples/lifeworld/rulekeep.yaml` works as a copy-paste starting point
 - [ ] Clean-machine install tested on Windows and macOS for every agent
 - [ ] Issue templates live; you can respond to false-alarm reports within 48 hours for the first month
 - [ ] Submitted to Anthropic's community marketplace
@@ -372,7 +372,7 @@ jobs:
 - [ ] A short thread on X / Bluesky with the demo
 
 **Don't** post links in other projects' GitHub issues as advertising. If an open
-issue asks for exactly what holdfast does, one reply that says you built it,
+issue asks for exactly what rulekeep does, one reply that says you built it,
 links it, and discloses you're the author is fine. Once.
 
 ### First month after

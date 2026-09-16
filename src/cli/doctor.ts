@@ -1,5 +1,5 @@
 /**
- * `holdfast doctor` — a quick self-check a user runs when something seems
+ * `rulekeep doctor` — a quick self-check a user runs when something seems
  * off (docs/02-what-we-build.md "Commands"). This build covers the checks
  * that don't need a live agent session; per-agent hook-support checks are a
  * later increment.
@@ -15,7 +15,7 @@ export function runDoctor(repoRoot: string): string {
   lines.push(
     nodeMajor >= MIN_NODE_MAJOR
       ? `✔ Node.js ${process.versions.node} (>= ${MIN_NODE_MAJOR} required)`
-      : `✘ Node.js ${process.versions.node} — holdfast needs Node ${MIN_NODE_MAJOR} or newer`,
+      : `✘ Node.js ${process.versions.node} — rulekeep needs Node ${MIN_NODE_MAJOR} or newer`,
   );
 
   const loaded = loadConfig(repoRoot);
@@ -24,7 +24,7 @@ export function runDoctor(repoRoot: string): string {
     const offCount = loaded.config.rules.filter((r) => r.mode === 'off').length;
     if (offCount > 0) lines.push(`  (${offCount} rule(s) set to "off")`);
   } else if (loaded.path === undefined) {
-    lines.push('✘ No holdfast.yaml found above this directory. Run /holdfast:setup to create one.');
+    lines.push('✘ No rulekeep.yaml found above this directory. Run /rulekeep:setup to create one.');
   } else {
     lines.push(`✘ ${loaded.path} is invalid:`);
     for (const error of loaded.errors) lines.push(`    line ${error.line}: ${error.message}`);

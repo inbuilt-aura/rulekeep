@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProseRule } from '../../../src/engine/config.js';
-import type { HoldfastEvent } from '../../../src/engine/events.js';
+import type { RulekeepEvent } from '../../../src/engine/events.js';
 import { checkProseRule } from '../../../src/engine/rules/prose.js';
 
 const rule: ProseRule = {
@@ -12,7 +12,7 @@ const rule: ProseRule = {
   match: /\b(load-bearing|delve|seamlessly)\b/i,
 };
 
-const stop = (finalMessage: string | null): HoldfastEvent => ({
+const stop = (finalMessage: string | null): RulekeepEvent => ({
   kind: 'stop',
   agent: 'claude-code',
   sessionId: 's1',
@@ -38,7 +38,7 @@ describe('checkProseRule', () => {
   });
 
   it('only runs on the stop event', () => {
-    const event: HoldfastEvent = { kind: 'before-command', agent: 'claude-code', sessionId: 's1', repoRoot: '/repo', command: 'delve into it' };
+    const event: RulekeepEvent = { kind: 'before-command', agent: 'claude-code', sessionId: 's1', repoRoot: '/repo', command: 'delve into it' };
     expect(checkProseRule(rule, event)).toEqual([]);
   });
 });

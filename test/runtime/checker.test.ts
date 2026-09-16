@@ -4,18 +4,19 @@
  * run) rather than mocking spawnSync — the whole point of this module is
  * that it correctly drives a real process, so mocking it would test nothing.
  */
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CheckerRule } from '../../src/engine/config.js';
-import type { FileChange, HoldfastEvent } from '../../src/engine/events.js';
+import type { FileChange, RulekeepEvent } from '../../src/engine/events.js';
 import { checkerApplies, runChecker, runCheckers, stripAnsi, trimOutput } from '../../src/runtime/checker.js';
 
 let repoRoot: string;
 
 beforeAll(() => {
-  repoRoot = mkdtempSync(join(tmpdir(), 'holdfast-checker-'));
+  repoRoot = mkdtempSync(join(tmpdir(), 'rulekeep-checker-'));
 });
 
 afterAll(() => {
@@ -43,7 +44,7 @@ const rule = (overrides: Partial<CheckerRule> = {}): CheckerRule => ({
 
 const change = (path: string): FileChange => ({ path, before: null, after: 'x' });
 
-const stopEvent = (changes: readonly FileChange[] = []): HoldfastEvent => ({
+const stopEvent = (changes: readonly FileChange[] = []): RulekeepEvent => ({
   kind: 'stop',
   agent: 'claude-code',
   sessionId: 's1',
@@ -53,7 +54,7 @@ const stopEvent = (changes: readonly FileChange[] = []): HoldfastEvent => ({
   retry: 0,
 });
 
-const editEvent = (changes: readonly FileChange[]): HoldfastEvent => ({
+const editEvent = (changes: readonly FileChange[]): RulekeepEvent => ({
   kind: 'after-edit',
   agent: 'claude-code',
   sessionId: 's1',
@@ -62,9 +63,15 @@ const editEvent = (changes: readonly FileChange[]): HoldfastEvent => ({
 });
 
 describe('stripAnsi', () => {
-  it('removes colour codes but keeps the text', () => {
+  it('removes colour codes from real process output, keeping the text', () => {
+    // Built from char codes, and asserted against output from an actual
+    // child process - a hand-typed escape in this file could be mangled by
+    // the same text tooling that could mangle the pattern, hiding a break.
     const ESC = String.fromCharCode(27);
-    expect(stripAnsi(`${ESC}[31merror${ESC}[0m: bad`)).toBe('error: bad');
+    const script = ["const E = String.fromCharCode(27);", "console.log(E + \"[31m\" + \"FAILED\" + E + \"[0m\" + \": 2 errors\")"].join(';');
+    const child = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' });
+    expect(child.stdout).toContain(ESC);
+    expect(stripAnsi(child.stdout).trim()).toBe('FAILED: 2 errors');
   });
 
   it('leaves plain text untouched', () => {
@@ -142,7 +149,7 @@ describe('checkerApplies', () => {
   });
 
   it('never runs for a command event', () => {
-    const command: HoldfastEvent = { kind: 'before-command', agent: 'claude-code', sessionId: 's1', repoRoot: '/repo', command: 'ls' };
+    const command: RulekeepEvent = { kind: 'before-command', agent: 'claude-code', sessionId: 's1', repoRoot: '/repo', command: 'ls' };
     expect(checkerApplies(rule(), command)).toBe(false);
   });
 

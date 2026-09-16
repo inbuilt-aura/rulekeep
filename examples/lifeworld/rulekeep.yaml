@@ -2,14 +2,14 @@
 # came out of. See docs/02-what-we-build.md "Full example (LIFEWORLD)".
 #
 # Every rule here maps to an actual sentence in that repo's app/CLAUDE.md.
-# Copy this file to a repo root as holdfast.yaml and edit the paths/messages
+# Copy this file to a repo root as rulekeep.yaml and edit the paths/messages
 # to match your own project.
 
 version: 1
 
 defaults:
   mode: warn             # off | warn | block
-  allowOverride: true    # can a line opt out with a holdfast-ignore comment?
+  allowOverride: true    # can a line opt out with a rulekeep-ignore comment?
 
 rules:
   # --- Command rules: run before a shell command -------------------------

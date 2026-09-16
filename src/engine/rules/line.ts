@@ -5,7 +5,7 @@
  */
 import { ruleAppliesTo, type LineRule } from '../config.js';
 import { changedLines, type ChangedLine } from '../diff.js';
-import type { Finding, HoldfastEvent } from '../events.js';
+import type { Finding, RulekeepEvent } from '../events.js';
 import { findOverride } from '../overrides.js';
 
 /** Lines this long are skipped — minified or generated files, not real edits to review. */
@@ -46,7 +46,7 @@ function findingsFor(
   return findings;
 }
 
-export function checkLineRule(rule: LineRule, event: HoldfastEvent): readonly Finding[] {
+export function checkLineRule(rule: LineRule, event: RulekeepEvent): readonly Finding[] {
   if ((event.kind !== 'after-edit' && event.kind !== 'stop') || rule.mode === 'off') return [];
 
   const findings: Finding[] = [];

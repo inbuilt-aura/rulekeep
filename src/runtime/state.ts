@@ -7,7 +7,7 @@
  * the architecture doc describes a git-baseline reconciliation at stop (what
  * the repo looked like at session start, compared against `git status`).
  * That needs git plumbing this pass didn't build. What's here instead is
- * simpler and still real: every after-edit change holdfast is told about is
+ * simpler and still real: every after-edit change rulekeep is told about is
  * appended to the session's change log, and `stop` re-checks that whole log.
  * It catches everything the agent changed through its own edit tools; it
  * will not catch a file edited through a raw shell command with no matching
@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentName, FileChange } from '../engine/events.js';
 
-const ROOT_DIR_NAME = 'holdfast';
+const ROOT_DIR_NAME = 'rulekeep';
 const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function safe(value: string): string {

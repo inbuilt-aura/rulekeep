@@ -5,8 +5,8 @@
  * being wrong would matter: a changed command must not stay approved, and one
  * repo's approval must not leak into another's.
  *
- * HOLDFAST_HOME redirects the trust file into a temp dir, so running the
- * suite never touches the real ~/.holdfast/trusted.json.
+ * RULEKEEP_HOME redirects the trust file into a temp dir, so running the
+ * suite never touches the real ~/.rulekeep/trusted.json.
  */
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,17 +16,17 @@ import { parseConfig, type CheckerRule } from '../../src/engine/config.js';
 import { checkerRulesOf, fingerprint, isTrusted, revoke, trust, trustFilePath, untrustedNotice } from '../../src/runtime/trust.js';
 
 let home: string;
-const originalHome = process.env.HOLDFAST_HOME;
+const originalHome = process.env.RULEKEEP_HOME;
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'holdfast-trust-'));
-  process.env.HOLDFAST_HOME = home;
+  home = mkdtempSync(join(tmpdir(), 'rulekeep-trust-'));
+  process.env.RULEKEEP_HOME = home;
 });
 
 afterEach(() => {
   rmSync(home, { recursive: true, force: true });
-  if (originalHome === undefined) delete process.env.HOLDFAST_HOME;
-  else process.env.HOLDFAST_HOME = originalHome;
+  if (originalHome === undefined) delete process.env.RULEKEEP_HOME;
+  else process.env.RULEKEEP_HOME = originalHome;
 });
 
 const rule = (overrides: Partial<CheckerRule> = {}): CheckerRule => ({
@@ -42,7 +42,7 @@ const rule = (overrides: Partial<CheckerRule> = {}): CheckerRule => ({
   ...overrides,
 });
 
-const CONFIG = '/repo/holdfast.yaml';
+const CONFIG = '/repo/rulekeep.yaml';
 
 describe('isTrusted', () => {
   it('is false for checkers that were never approved', () => {
@@ -74,13 +74,13 @@ describe('isTrusted', () => {
   });
 
   it('does not leak approval from one repo to another', () => {
-    trust('/repo-a/holdfast.yaml', [rule()]);
-    expect(isTrusted('/repo-b/holdfast.yaml', [rule()])).toBe(false);
+    trust('/repo-a/rulekeep.yaml', [rule()]);
+    expect(isTrusted('/repo-b/rulekeep.yaml', [rule()])).toBe(false);
   });
 
   it('treats Windows and POSIX spellings of the same path as one repo', () => {
-    trust('D:\\repo\\holdfast.yaml', [rule()]);
-    expect(isTrusted('D:/repo/holdfast.yaml', [rule()])).toBe(true);
+    trust('D:\\repo\\rulekeep.yaml', [rule()]);
+    expect(isTrusted('D:/repo/rulekeep.yaml', [rule()])).toBe(true);
   });
 
   it('ignores cosmetic edits that do not change what runs', () => {
@@ -118,28 +118,28 @@ describe('trust and revoke', () => {
     const entries = Object.entries(saved.entries);
     expect(entries).toHaveLength(1);
     const [key, entry] = entries[0] ?? [];
-    expect(key).toContain('repo/holdfast.yaml');
+    expect(key).toContain('repo/rulekeep.yaml');
     expect(entry?.fingerprint).toBe(fingerprint([rule()]));
     expect(Number.isNaN(Date.parse(entry?.approvedAt ?? ''))).toBe(false);
   });
 
   it('keeps other repos approved when one is added', () => {
-    trust('/repo-a/holdfast.yaml', [rule()]);
-    trust('/repo-b/holdfast.yaml', [rule()]);
-    expect(isTrusted('/repo-a/holdfast.yaml', [rule()])).toBe(true);
-    expect(isTrusted('/repo-b/holdfast.yaml', [rule()])).toBe(true);
+    trust('/repo-a/rulekeep.yaml', [rule()]);
+    trust('/repo-b/rulekeep.yaml', [rule()]);
+    expect(isTrusted('/repo-a/rulekeep.yaml', [rule()])).toBe(true);
+    expect(isTrusted('/repo-b/rulekeep.yaml', [rule()])).toBe(true);
   });
 
   it('revoking removes approval for that repo only', () => {
-    trust('/repo-a/holdfast.yaml', [rule()]);
-    trust('/repo-b/holdfast.yaml', [rule()]);
-    revoke('/repo-a/holdfast.yaml');
-    expect(isTrusted('/repo-a/holdfast.yaml', [rule()])).toBe(false);
-    expect(isTrusted('/repo-b/holdfast.yaml', [rule()])).toBe(true);
+    trust('/repo-a/rulekeep.yaml', [rule()]);
+    trust('/repo-b/rulekeep.yaml', [rule()]);
+    revoke('/repo-a/rulekeep.yaml');
+    expect(isTrusted('/repo-a/rulekeep.yaml', [rule()])).toBe(false);
+    expect(isTrusted('/repo-b/rulekeep.yaml', [rule()])).toBe(true);
   });
 
   it('revoking something never trusted is a no-op, not a crash', () => {
-    expect(() => revoke('/never/holdfast.yaml')).not.toThrow();
+    expect(() => revoke('/never/rulekeep.yaml')).not.toThrow();
     expect(existsSync(trustFilePath())).toBe(false);
   });
 });
@@ -175,7 +175,7 @@ describe('untrustedNotice', () => {
     expect(notice).toContain('npm run typecheck');
     expect(notice).toContain('npm run lint');
     expect(notice).toContain('(typecheck)');
-    expect(notice).toContain('/holdfast:trust');
+    expect(notice).toContain('/rulekeep:trust');
     expect(notice).toContain('Other rules are active.');
   });
 
@@ -191,11 +191,11 @@ describe('untrustedNotice', () => {
 
 describe('trust gate — hardening against a hostile config', () => {
   it('does not collapse different repos onto one key when given a relative path', () => {
-    // A relative path would key every repo as the bare "holdfast.yaml", so a
+    // A relative path would key every repo as the bare "rulekeep.yaml", so a
     // single approval would silently cover every project on the machine.
-    trust('holdfast.yaml', [rule()]);
+    trust('rulekeep.yaml', [rule()]);
 
-    const elsewhere = process.platform === 'win32' ? 'D:\\other-repo\\holdfast.yaml' : '/other-repo/holdfast.yaml';
+    const elsewhere = process.platform === 'win32' ? 'D:\\other-repo\\rulekeep.yaml' : '/other-repo/rulekeep.yaml';
     expect(isTrusted(elsewhere, [rule()])).toBe(false);
   });
 

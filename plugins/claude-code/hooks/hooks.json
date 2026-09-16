@@ -1,5 +1,5 @@
 {
-  "description": "holdfast: enforce holdfast.yaml rules",
+  "description": "rulekeep: enforce rulekeep.yaml rules",
   "hooks": {
     "SessionStart": [
       {
@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "session-start"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "session-start"],
             "timeout": 30
           }
         ]
@@ -20,7 +20,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "pre-tool-use"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "pre-tool-use"],
             "timeout": 10
           }
         ]
@@ -33,7 +33,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "post-tool-use"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "post-tool-use"],
             "timeout": 60
           }
         ]
@@ -45,7 +45,7 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "stop"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "stop"],
             "timeout": 300
           }
         ]

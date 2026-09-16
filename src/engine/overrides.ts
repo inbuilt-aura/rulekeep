@@ -1,12 +1,12 @@
 /**
- * Finds `holdfast-ignore <rule-id>: <reason>` comments
+ * Finds `rulekeep-ignore <rule-id>: <reason>` comments
  * (docs/02-what-we-build.md "Overrides"). An override must be visible and
- * carry a reason — a bare `holdfast-ignore no-any` with nothing after the
+ * carry a reason — a bare `rulekeep-ignore no-any` with nothing after the
  * colon does not count, and still fires.
  */
 
 // Captures the rule id and the reason text after the colon.
-const OVERRIDE = /holdfast-ignore\s+([a-z0-9-]+)\s*:\s*(\S.*)$/i;
+const OVERRIDE = /rulekeep-ignore\s+([a-z0-9-]+)\s*:\s*(\S.*)$/i;
 
 export interface OverrideMatch {
   readonly ruleId: string;

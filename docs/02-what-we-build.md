@@ -4,7 +4,7 @@ This chapter is the product spec: who it's for, what they see, the rules file
 format, every rule type, and what's deliberately left out. How it works inside
 is in [03-architecture.md](./03-architecture.md).
 
-> **Working name: `holdfast`.** A holdfast is a clamp that holds a workpiece
+> **Working name: `rulekeep`.** A rulekeep is a clamp that holds a workpiece
 > still. It's a placeholder — check GitHub and npm for clashes before
 > publishing, and never use "Claude", "Anthropic", "GPT" or "Codex" in the real
 > name ([07-business.md](./07-business.md)).
@@ -13,7 +13,7 @@ is in [03-architecture.md](./03-architecture.md).
 
 ## One sentence
 
-**holdfast enforces your project's rules while an AI agent works — in Claude
+**rulekeep enforces your project's rules while an AI agent works — in Claude
 Code, Codex and Gemini CLI — and checks the same rules again in CI.**
 
 ## Who it's for
@@ -31,8 +31,8 @@ Code, Codex and Gemini CLI — and checks the same rules again in CI.**
 In Claude Code:
 
 ```
-/plugin marketplace add <github-user>/holdfast
-/plugin install holdfast@holdfast
+/plugin marketplace add <github-user>/rulekeep
+/plugin install rulekeep@rulekeep
 ```
 
 Codex and Gemini CLI have their own install commands
@@ -43,11 +43,11 @@ Codex and Gemini CLI have their own install commands
 The user runs the setup skill:
 
 ```
-/holdfast:setup
+/rulekeep:setup
 ```
 
 The agent reads `CLAUDE.md`, `AGENTS.md` and `GEMINI.md`, picks out the rules a
-machine can check, and proposes a `holdfast.yaml`. **The user reviews and
+machine can check, and proposes a `rulekeep.yaml`. **The user reviews and
 approves it.** Nothing is enforced until the file exists.
 
 For LIFEWORLD it would propose rules like "no `any`", "no hex colors in
@@ -61,14 +61,14 @@ The agent works as usual. When it breaks a rule, it gets a message like this
 straight away:
 
 ```
-holdfast: this edit breaks 1 rule.
+rulekeep: this edit breaks 1 rule.
 
   no-any (block)  app/src/features/world/queries.ts:42
     const data = response as any;
     Don't use `any`. Use `unknown` and narrow it. (app/CLAUDE.md §13)
 
 Fix the edit, then continue. If this is a genuine exception, add
-`// holdfast-ignore no-any: <reason>` on that line.
+`// rulekeep-ignore no-any: <reason>` on that line.
 ```
 
 The agent fixes the line and carries on. The user only sees a short note that a
@@ -79,7 +79,7 @@ rule fired.
 CI runs the same rules on everything the PR changed:
 
 ```bash
-npx holdfast check --base origin/main
+npx rulekeep check --base origin/main
 ```
 
 It fails the build on any blocking rule and lists every override with its reason.
@@ -88,7 +88,7 @@ It fails the build on any blocking rule and lists every override with its reason
 
 ## The rules file
 
-One file at the repo root: **`holdfast.yaml`**. It's plain YAML so anyone can
+One file at the repo root: **`rulekeep.yaml`**. It's plain YAML so anyone can
 read and review it in a pull request.
 
 ### Full example (LIFEWORLD)
@@ -98,7 +98,7 @@ version: 1
 
 defaults:
   mode: warn             # off | warn | block
-  allowOverride: true    # can a line opt out with a holdfast-ignore comment?
+  allowOverride: true    # can a line opt out with a rulekeep-ignore comment?
 
 rules:
   # --- Command rules: run before a shell command -------------------------
@@ -177,7 +177,7 @@ rules:
 | `message` | no* | What the agent is told. *Required for `command`, `line`, `boundary` and `prose` |
 | `files` | no | Glob patterns the rule applies to. Default: all files |
 | `exclude` | no | Glob patterns to skip |
-| `allowOverride` | no | Whether a `holdfast-ignore` comment can silence it |
+| `allowOverride` | no | Whether a `rulekeep-ignore` comment can silence it |
 
 ### What `warn` and `block` mean at each moment
 
@@ -186,7 +186,7 @@ rules:
 | Before a command | Command runs; agent is told the rule | Command does **not** run; agent is told why |
 | After an edit | Agent is told; may continue | Agent is told it must fix the edit before continuing |
 | Agent wants to stop | Listed in the final summary | Agent is sent back to fix it (with a retry limit, below) |
-| CI (`holdfast check`) | Printed, build passes | Printed, build **fails** |
+| CI (`rulekeep check`) | Printed, build passes | Printed, build **fails** |
 
 An edit has already happened when the after-edit hook runs, so "block" there
 means "tell the agent to fix it now", not "undo".
@@ -289,11 +289,11 @@ habits, like the "load-bearing" issue.
 | `match` | Regex tested against the final message |
 
 Available where the agent passes the final message to its stop hook. Where it
-doesn't, the rule is skipped and `holdfast doctor` says so.
+doesn't, the rule is skipped and `rulekeep doctor` says so.
 
 ### 7. Rule reminder — built in, not configured
 
-Not a rule type you write. After the agent compacts its conversation, holdfast
+Not a rule type you write. After the agent compacts its conversation, rulekeep
 puts a short summary of every active rule back into context. This is what keeps
 long sessions following the rules.
 
@@ -305,13 +305,13 @@ Sometimes breaking a rule is right. The override must be **visible** and carry a
 **reason**:
 
 ```ts
-const raw = JSON.parse(text) as any; // holdfast-ignore no-any: third-party JSON, validated on the next line
+const raw = JSON.parse(text) as any; // rulekeep-ignore no-any: third-party JSON, validated on the next line
 ```
 
 Rules:
 
 - The comment must be on the same line or the line directly above.
-- It must name the rule id and give a reason. `holdfast-ignore no-any` with no
+- It must name the rule id and give a reason. `rulekeep-ignore no-any` with no
   reason doesn't count.
 - Rules with `allowOverride: false` ignore these comments.
 - Every override is listed in the end-of-turn summary and in the CI report. An
@@ -322,7 +322,7 @@ Rules:
 When a blocking rule is still broken, the stop hook sends the agent back to work.
 If the agent can't fix it, it could loop. So:
 
-- holdfast sends the agent back **at most 3 times per turn** (configurable as
+- rulekeep sends the agent back **at most 3 times per turn** (configurable as
   `defaults.maxStopRetries`).
 - After that it lets the agent stop, and the final message to the user says
   exactly which rules are still broken.
@@ -331,12 +331,12 @@ If the agent can't fix it, it could loop. So:
 
 | Command | Who runs it | What it does |
 | --- | --- | --- |
-| `/holdfast:setup` | User, in the agent | Proposes `holdfast.yaml` from the repo's rule files |
-| `/holdfast:explain <rule-id>` | User, in the agent | Shows what a rule checks and recent hits |
-| `holdfast check [--base <ref>]` | CI or a human | Checks all changes since `<ref>` against every rule |
-| `holdfast test` | Rule authors | Runs each rule against its example files ([05-testing.md](./05-testing.md)) |
-| `holdfast doctor` | User | Checks Node version, config validity, which hooks the current agent supports |
-| `holdfast hook <agent> <event>` | The agent's hooks (internal) | Entry point every hook calls |
+| `/rulekeep:setup` | User, in the agent | Proposes `rulekeep.yaml` from the repo's rule files |
+| `/rulekeep:explain <rule-id>` | User, in the agent | Shows what a rule checks and recent hits |
+| `rulekeep check [--base <ref>]` | CI or a human | Checks all changes since `<ref>` against every rule |
+| `rulekeep test` | Rule authors | Runs each rule against its example files ([05-testing.md](./05-testing.md)) |
+| `rulekeep doctor` | User | Checks Node version, config validity, which hooks the current agent supports |
+| `rulekeep hook <agent> <event>` | The agent's hooks (internal) | Entry point every hook calls |
 
 ## What it does not do
 
@@ -346,7 +346,7 @@ Say these plainly in the README. Promising more will lose trust fast.
 | --- | --- |
 | **Judge quality** ("keep screens thin", "write less") | Needs judgement. Would need an AI model call, which costs money and makes results unpredictable |
 | **Be a security boundary** | An agent with shell access can work around any hook. Use sandboxing for security; this is for habits and conventions |
-| **Auto-fix** | The agent fixes; holdfast explains. Keeps holdfast small and predictable |
+| **Auto-fix** | The agent fixes; rulekeep explains. Keeps rulekeep small and predictable |
 | **Network calls or telemetry** | Hooks run on people's machines on every edit. Nothing leaves the machine |
 | **A dashboard or accounts** | Only if teams adopt it and ask ([07-business.md](./07-business.md)) |
 | **Resolve TypeScript path aliases** | Match import text as written in v1 |
@@ -357,5 +357,5 @@ Say these plainly in the README. Promising more will lose trust fast.
 | --- | --- | --- |
 | **v0.1** | Claude Code plugin. Rule types: command, line, test-guard, checker, rule reminder. `check` CLI | Works on LIFEWORLD for 2 weeks; `claude plugin validate` passes; installs on Windows, macOS, Linux |
 | **v0.2** | Codex plugin. Boundary rules. Overrides report | Same rules file works in Codex on LIFEWORLD |
-| **v0.3** | Gemini CLI extension. Prose rules. `/holdfast:setup` skill | Accepted into Anthropic's community marketplace |
-| **v1.0** | Stable `holdfast.yaml` format (no breaking changes after this) | 3 outside repos use it; no open bugs marked critical |
+| **v0.3** | Gemini CLI extension. Prose rules. `/rulekeep:setup` skill | Accepted into Anthropic's community marketplace |
+| **v1.0** | Stable `rulekeep.yaml` format (no breaking changes after this) | 3 outside repos use it; no open bugs marked critical |

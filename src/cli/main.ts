@@ -1,5 +1,5 @@
 /**
- * `holdfast hook | check | trust | doctor` (docs/02-what-we-build.md "Commands").
+ * `rulekeep hook | check | trust | doctor` (docs/02-what-we-build.md "Commands").
  * The shebang line lives in the esbuild `--banner:js` flag (package.json
  * "build" script), not here — one in the source plus one from the banner
  * would double up in the bundle, and Node only strips the first.
@@ -16,7 +16,7 @@ import type { ClaudeHookInput } from '../adapters/claude-code.js';
 import { recordPayload } from '../runtime/record.js';
 
 /**
- * The one rule that matters most: a bug in holdfast must never block real
+ * The one rule that matters most: a bug in rulekeep must never block real
  * work (docs/03-architecture.md "Fail open"). Every `hook` invocation always
  * exits 0, even when something inside throws.
  */
@@ -43,7 +43,7 @@ async function runHook(agent: string, event: string): Promise<void> {
               : {};
     process.stdout.write(JSON.stringify(output));
   } catch (error) {
-    process.stdout.write(JSON.stringify({ systemMessage: `holdfast: internal error, rules not applied (${(error as Error).message})` }));
+    process.stdout.write(JSON.stringify({ systemMessage: `rulekeep: internal error, rules not applied (${(error as Error).message})` }));
   }
   process.exit(0);
 }
@@ -55,11 +55,11 @@ function runCheckCommand(args: readonly string[]): void {
   const format = formatIndex >= 0 ? args[formatIndex + 1] : 'text';
 
   if (!base) {
-    console.error('holdfast check: --base <ref> is required, e.g. --base origin/main');
+    console.error('rulekeep check: --base <ref> is required, e.g. --base origin/main');
     process.exit(2);
   }
   if (format !== 'text' && format !== 'github' && format !== 'json') {
-    console.error(`holdfast check: --format must be text, github or json (got "${format}")`);
+    console.error(`rulekeep check: --format must be text, github or json (got "${format}")`);
     process.exit(2);
   }
 
@@ -101,13 +101,13 @@ async function main(): Promise<void> {
     default:
       console.error(
         [
-          'holdfast — enforce your project\'s rules while an AI agent works.',
+          'rulekeep — enforce your project\'s rules while an AI agent works.',
           '',
           'Usage:',
-          '  holdfast hook <agent> <event>     (called by an agent\'s own hook config)',
-          '  holdfast check --base <ref>       (run every rule against changes since <ref>)',
-          '  holdfast trust [--list|--revoke]  (approve this repo\'s checker commands)',
-          '  holdfast doctor                   (check Node version and holdfast.yaml)',
+          '  rulekeep hook <agent> <event>     (called by an agent\'s own hook config)',
+          '  rulekeep check --base <ref>       (run every rule against changes since <ref>)',
+          '  rulekeep trust [--list|--revoke]  (approve this repo\'s checker commands)',
+          '  rulekeep doctor                   (check Node version and rulekeep.yaml)',
         ].join('\n'),
       );
       process.exit(command === undefined ? 0 : 1);

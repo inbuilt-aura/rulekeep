@@ -1,6 +1,6 @@
 # 3. How it works
 
-This chapter is the technical design: the parts of holdfast, how data flows for
+This chapter is the technical design: the parts of rulekeep, how data flows for
 each agent, how changes are detected, the exact hook formats, and the rules for
 speed, safety and Windows. Build steps are in [04-build-plan.md](./04-build-plan.md).
 
@@ -13,13 +13,13 @@ Claude Code facts here were checked against the official docs on 14 September
 ## The big picture
 
 ```
-                         ┌───────────────────────────── holdfast.cjs (one bundled file) ─────────────────────────────┐
+                         ┌───────────────────────────── rulekeep.cjs (one bundled file) ─────────────────────────────┐
                          │                                                                                             │
  Claude Code hook ──┐    │  ┌──────────────┐    ┌───────────────┐    ┌──────────────────┐    ┌───────────────────┐   │
  Codex hook ────────┼──► │  │   adapter    │ ─► │    runtime    │ ─► │   rule engine    │ ─► │  adapter output   │ ──┼──► back to the agent
  Gemini CLI hook ───┘    │  │ agent JSON → │    │ snapshots,    │    │ pure: event +    │    │ verdict → agent's │   │
-                         │  │ holdfast     │    │ git baseline, │    │ rules → verdict  │    │ JSON / exit code  │   │
- holdfast check (CI) ──► │  │ event        │    │ run checkers  │    │                  │    │                   │   │
+                         │  │ rulekeep     │    │ git baseline, │    │ rules → verdict  │    │ JSON / exit code  │   │
+ rulekeep check (CI) ──► │  │ event        │    │ run checkers  │    │                  │    │                   │   │
                          │  └──────────────┘    └───────────────┘    └──────────────────┘    └───────────────────┘   │
                          └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -44,12 +44,12 @@ cases. It also means the same engine runs identically in every agent and in CI.
 ```
 src/
   engine/
-    config.ts        parse + validate holdfast.yaml → typed rules (errors carry line numbers)
-    events.ts        the HoldfastEvent and Verdict types
+    config.ts        parse + validate rulekeep.yaml → typed rules (errors carry line numbers)
+    events.ts        the RulekeepEvent and Verdict types
     diff.ts          added/removed lines, with line numbers, between two file versions
     evaluate.ts      (event, rules) → Verdict
     format.ts        Verdict → the message the agent reads
-    overrides.ts     find `holdfast-ignore <rule>: <reason>` comments
+    overrides.ts     find `rulekeep-ignore <rule>: <reason>` comments
     rules/
       command.ts  line.ts  boundary.ts  testGuard.ts  prose.ts
   runtime/
@@ -58,21 +58,21 @@ src/
     baseline.ts      what the repo looked like when the session started
     changes.ts       compute FileChange[] (after an edit, at stop, or in CI)
     checker.ts       run a checker command with a timeout, capture output
-    trust.ts         has the user approved this holdfast.yaml's checker commands?
+    trust.ts         has the user approved this rulekeep.yaml's checker commands?
   adapters/
     claude-code.ts   codex.ts   gemini-cli.ts
   cli/
-    main.ts          holdfast hook | check | test | doctor | explain | trust
+    main.ts          rulekeep hook | check | test | doctor | explain | trust
 ```
 
-**Build output:** one file, `dist/holdfast.cjs`, bundled with esbuild. Every
+**Build output:** one file, `dist/rulekeep.cjs`, bundled with esbuild. Every
 plugin package (Claude Code, Codex, Gemini CLI) contains a copy.
 
 **Runtime dependencies** (all pure JavaScript, bundled into that one file):
 
 | Package | Why |
 | --- | --- |
-| `yaml` | Parse `holdfast.yaml` with line numbers for error messages |
+| `yaml` | Parse `rulekeep.yaml` with line numbers for error messages |
 | `picomatch` | Glob matching for `files`, `exclude`, `when`, `from` |
 | `diff` | Line diffs between file versions |
 
@@ -109,7 +109,7 @@ interface Base {
   readonly repoRoot: string;
 }
 
-export type HoldfastEvent =
+export type RulekeepEvent =
   | (Base & { kind: 'session-start'; reason: 'startup' | 'resume' | 'clear' | 'compact' })
   | (Base & { kind: 'before-command'; command: string })
   | (Base & { kind: 'before-edit'; paths: readonly string[] })
@@ -123,7 +123,7 @@ export interface Finding {
   readonly path?: string;
   readonly line?: number;
   readonly excerpt?: string;
-  /** Present when a holdfast-ignore comment silenced a finding. It is still reported */
+  /** Present when a rulekeep-ignore comment silenced a finding. It is still reported */
   readonly override?: { readonly reason: string };
 }
 
@@ -144,7 +144,7 @@ export interface Verdict {
 | before-command | ✓ | | | | | | | |
 | after-edit | | ✓ | ✓ | ✓ | ✓ | | | |
 | stop | | ✓ | ✓ | ✓ | | ✓ | ✓ | |
-| CI (`holdfast check`) | | ✓ | ✓ | ✓ | ✓ | ✓ | | |
+| CI (`rulekeep check`) | | ✓ | ✓ | ✓ | ✓ | ✓ | | |
 
 At **stop**, line, boundary and test-guard rules run again over the **whole
 turn's changes**. That's what catches files written through the shell, which no
@@ -164,7 +164,7 @@ The agent's edit tools don't give us a clean "before and after":
 - `Edit` sends `old_string` and `new_string`, but with `replace_all` it can change
   many places, and we need real line numbers.
 
-So holdfast uses **two hooks per edit**:
+So rulekeep uses **two hooks per edit**:
 
 ```
 PreToolUse (Edit|Write)   → runtime/snapshot.ts saves the file's current content
@@ -182,14 +182,14 @@ fall back to comparing with the session baseline.
 
 ### At stop: compare with the session baseline
 
-At **session start**, holdfast records what the repo looked like:
+At **session start**, rulekeep records what the repo looked like:
 
 1. `git rev-parse HEAD` — the commit.
 2. `git status --porcelain=v1 -z` — files already modified or untracked **by the
    user**, before the agent did anything.
 3. A copy of each of those already-modified files (skip files over 1 MB).
 
-At **stop**, holdfast lists every file that now differs from that baseline
+At **stop**, rulekeep lists every file that now differs from that baseline
 (`git status` again, plus snapshot history), and builds a `FileChange` for each:
 
 | File was… | `before` comes from |
@@ -202,11 +202,11 @@ At **stop**, holdfast lists every file that now differs from that baseline
 agent. Only what changed *during the session* is checked.
 
 **No git repo?** The stop gate checks only files the edit hooks saw, and
-`holdfast doctor` says so.
+`rulekeep doctor` says so.
 
 ### In CI: compare with the base branch
 
-`holdfast check --base origin/main`:
+`rulekeep check --base origin/main`:
 
 - changed files: `git diff --name-status -z origin/main...HEAD`, plus uncommitted
   working-tree changes
@@ -220,7 +220,7 @@ agent. Only what changed *during the session* is checked.
 Stored in the OS temp folder, so it works the same for every agent:
 
 ```
-<os.tmpdir()>/holdfast/<agent>-<sessionId>/
+<os.tmpdir()>/rulekeep/<agent>-<sessionId>/
   baseline.json          HEAD, dirty file list
   baseline-files/        copies of files dirty at session start
   snapshots/             one file per pending edit, deleted after PostToolUse
@@ -240,13 +240,13 @@ quoting and paths with spaces work the same in Git Bash, PowerShell and sh.
 
 ```json
 {
-  "description": "holdfast: enforce holdfast.yaml rules",
+  "description": "rulekeep: enforce rulekeep.yaml rules",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           { "type": "command", "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "session-start"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "session-start"],
             "timeout": 30 }
         ]
       }
@@ -256,7 +256,7 @@ quoting and paths with spaces work the same in Git Bash, PowerShell and sh.
         "matcher": "Bash|PowerShell|^Edit$|^Write$|^NotebookEdit$",
         "hooks": [
           { "type": "command", "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "pre-tool-use"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "pre-tool-use"],
             "timeout": 10 }
         ]
       }
@@ -266,7 +266,7 @@ quoting and paths with spaces work the same in Git Bash, PowerShell and sh.
         "matcher": "^Edit$|^Write$|^NotebookEdit$",
         "hooks": [
           { "type": "command", "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "post-tool-use"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "post-tool-use"],
             "timeout": 60 }
         ]
       }
@@ -275,7 +275,7 @@ quoting and paths with spaces work the same in Git Bash, PowerShell and sh.
       {
         "hooks": [
           { "type": "command", "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "stop"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/rulekeep.cjs", "hook", "claude-code", "stop"],
             "timeout": 300 }
         ]
       }
@@ -287,7 +287,7 @@ quoting and paths with spaces work the same in Git Bash, PowerShell and sh.
 Notes on the choices above:
 
 - **One entry per event.** Claude Code runs all matching hooks for an event **in
-  parallel**. One entry means holdfast controls the order itself.
+  parallel**. One entry means rulekeep controls the order itself.
 - **Match `Bash|PowerShell`.** On Windows, Claude Code may route shell commands
   through a `PowerShell` tool instead of `Bash`. A hook matching only `Bash`
   never fires there.
@@ -296,12 +296,12 @@ Notes on the choices above:
 - **Timeouts are in seconds.** The default for command hooks is 600. Short
   timeouts on the fast hooks keep a bug from freezing the agent.
 
-### What each hook receives (the fields holdfast uses)
+### What each hook receives (the fields rulekeep uses)
 
 Common to every event: `session_id`, `transcript_path`, `cwd`,
 `permission_mode`, `hook_event_name`.
 
-| Event | Extra fields holdfast reads |
+| Event | Extra fields rulekeep reads |
 | --- | --- |
 | SessionStart | `source`: `startup`, `resume`, `clear`, `compact` or `fork` |
 | PreToolUse | `tool_name`, `tool_use_id`, `tool_input` |
@@ -322,8 +322,8 @@ path to repo-relative with forward slashes before anything else sees it.
 
 ### What each hook returns
 
-holdfast **always exits 0 and prints JSON**. It never uses exit code 2, so a
-holdfast bug can't accidentally block the agent.
+rulekeep **always exits 0 and prints JSON**. It never uses exit code 2, so a
+rulekeep bug can't accidentally block the agent.
 
 **SessionStart, after compaction** — put the rules back into context:
 
@@ -331,7 +331,7 @@ holdfast bug can't accidentally block the agent.
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "holdfast rules for this repo:\n- no-any (block): Don't use `any`…\n- …"
+    "additionalContext": "rulekeep rules for this repo:\n- no-any (block): Don't use `any`…\n- …"
   }
 }
 ```
@@ -343,7 +343,7 @@ holdfast bug can't accidentally block the agent.
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "holdfast: no-force-push (block)\nNever force-push. Ask the user instead."
+    "permissionDecisionReason": "rulekeep: no-force-push (block)\nNever force-push. Ask the user instead."
   }
 }
 ```
@@ -353,7 +353,7 @@ For `deny`, the reason is shown to Claude. For a **warn**, don't set
 `additionalContext` for the warning.
 
 > Don't return `"allow"` to mean "no rule broken". `allow` skips the user's
-> permission prompt, which holdfast has no business doing. Return `{}`.
+> permission prompt, which rulekeep has no business doing. Return `{}`.
 
 **PostToolUse, edit breaks a blocking rule** — `decision` and `reason` are
 **top-level** for this event:
@@ -361,7 +361,7 @@ For `deny`, the reason is shown to Claude. For a **warn**, don't set
 ```json
 {
   "decision": "block",
-  "reason": "holdfast: this edit breaks 1 rule.\n\n  no-any (block)  app/src/features/world/queries.ts:42\n    const data = response as any;\n    Don't use `any`. Use `unknown` and narrow it.\n\nFix the edit, then continue."
+  "reason": "rulekeep: this edit breaks 1 rule.\n\n  no-any (block)  app/src/features/world/queries.ts:42\n    const data = response as any;\n    Don't use `any`. Use `unknown` and narrow it.\n\nFix the edit, then continue."
 }
 ```
 
@@ -374,39 +374,39 @@ so Claude acts on it. For a **warn**, use
 ```json
 {
   "decision": "block",
-  "reason": "holdfast: 2 rules are still broken in this turn's changes.\n…\nFix these before finishing."
+  "reason": "rulekeep: 2 rules are still broken in this turn's changes.\n…\nFix these before finishing."
 }
 ```
 
 To let Claude stop while telling the **user** what's left, return:
 
 ```json
-{ "systemMessage": "holdfast: stopped with 1 rule still broken (keep-tests-honest in app/src/models/world.test.ts). 1 override used." }
+{ "systemMessage": "rulekeep: stopped with 1 rule still broken (keep-tests-honest in app/src/models/world.test.ts). 1 override used." }
 ```
 
 ### Loop protection at stop
 
 Three layers:
 
-1. **holdfast's own limit:** send the agent back at most `maxStopRetries` times
+1. **rulekeep's own limit:** send the agent back at most `maxStopRetries` times
    (default 3) per turn, counted in `stop.json`.
 2. **`stop_hook_active`:** `false` on the first stop attempt of a turn, `true`
-   when Claude is already continuing because of a stop hook. holdfast resets its
+   when Claude is already continuing because of a stop hook. rulekeep resets its
    counter whenever it's `false`.
 3. **Claude Code's cap:** Claude Code ends the turn after **8 consecutive
    blocks** regardless.
 
 ### Output size
 
-Claude Code caps hook output strings at 10,000 characters. holdfast lists at most
-20 findings and adds "…and N more (run `holdfast check`)".
+Claude Code caps hook output strings at 10,000 characters. rulekeep lists at most
+20 findings and adds "…and N more (run `rulekeep check`)".
 
 ---
 
 ## Codex and Gemini CLI
 
 The adapters for Codex and Gemini CLI follow the same pattern: map the agent's
-before-tool, after-tool, stop and session events to holdfast events, and map the
+before-tool, after-tool, stop and session events to rulekeep events, and map the
 verdict back to the agent's output format. Their exact formats are in the
 [Codex and Gemini CLI wiring](#codex-and-gemini-cli-wiring) section below.
 
@@ -415,7 +415,7 @@ verdict back to the agent's output format. Their exact formats are in the
 ## CI mode
 
 ```bash
-npx holdfast check --base origin/main [--format text|github|json]
+npx rulekeep check --base origin/main [--format text|github|json]
 ```
 
 - Runs line, boundary, test-guard and checker rules over every change since
@@ -442,7 +442,7 @@ npx holdfast check --base origin/main [--format text|github|json]
 Rules to keep it fast:
 
 - **Bundle** into one file; no module resolution at startup.
-- **Parse `holdfast.yaml` once per hook call**, and cache the parsed result in the
+- **Parse `rulekeep.yaml` once per hook call**, and cache the parsed result in the
   session folder keyed by the file's hash.
 - **Skip lines over 2,000 characters** for regex rules (minified or generated
   files).
@@ -456,25 +456,25 @@ Rules to keep it fast:
 ### Fail open
 
 Any exception, unreadable input or invalid config → exit 0 with a single
-`systemMessage` such as `holdfast: config error in holdfast.yaml line 12 —
-rules not applied`. **A broken holdfast must never stop someone working.**
+`systemMessage` such as `rulekeep: config error in rulekeep.yaml line 12 —
+rules not applied`. **A broken rulekeep must never stop someone working.**
 
 ### Checker commands need approval
 
-A `checker` rule runs a command from `holdfast.yaml`. Someone could put a harmful
-command in a repo's `holdfast.yaml` and wait for a user to open it with an agent.
+A `checker` rule runs a command from `rulekeep.yaml`. Someone could put a harmful
+command in a repo's `rulekeep.yaml` and wait for a user to open it with an agent.
 
-So: the first time holdfast sees a `holdfast.yaml` containing checker rules, it
+So: the first time rulekeep sees a `rulekeep.yaml` containing checker rules, it
 **doesn't run them**. It tells the user once:
 
 ```
-holdfast: this repo's holdfast.yaml wants to run 2 commands:
+rulekeep: this repo's rulekeep.yaml wants to run 2 commands:
   npm run typecheck   (app-typecheck)
   npm run lint        (app-lint)
-Run /holdfast:trust to allow them. Other rules are active.
+Run /rulekeep:trust to allow them. Other rules are active.
 ```
 
-Approval stores the config's hash in `~/.holdfast/trusted.json`. If the checker
+Approval stores the config's hash in `~/.rulekeep/trusted.json`. If the checker
 commands change, approval is needed again.
 
 ### Nothing leaves the machine
@@ -486,19 +486,19 @@ listing in Anthropic's directory ([07-business.md](./07-business.md)).
 
 Rules come from the user's own repo, but a badly written regex can still be very
 slow on some input. Mitigations: the 2,000-character line limit, a per-rule
-fixture test (`holdfast test`), and `holdfast doctor` timing each rule against the
+fixture test (`rulekeep test`), and `rulekeep doctor` timing each rule against the
 repo's largest files.
 
 ### Not a security boundary
 
 An agent with shell access can always work around hooks. Say so in the README.
-holdfast is for conventions and habits; use real sandboxing for security.
+rulekeep is for conventions and habits; use real sandboxing for security.
 
 ---
 
 ## Windows
 
-| Problem | What holdfast does |
+| Problem | What rulekeep does |
 | --- | --- |
 | Paths arrive with backslashes | Convert to forward slashes and repo-relative in the adapter, before anything else |
 | Shell differs (Git Bash or PowerShell) | Exec-form hooks: `node` + `args`, no shell involved |
@@ -540,7 +540,7 @@ Record real payloads before relying on any detail (see [05-testing.md](./05-test
 **The formats are close to Claude Code's**, so the Codex adapter is small — with
 two important differences in behaviour, below.
 
-Input fields holdfast uses: `session_id`, `cwd`, `hook_event_name`, `turn_id`
+Input fields rulekeep uses: `session_id`, `cwd`, `hook_event_name`, `turn_id`
 (Codex-specific, useful for the stop retry counter), `tool_name`, `tool_use_id`,
 `tool_input`, `stop_hook_active`, `last_assistant_message`.
 
@@ -569,36 +569,36 @@ Codex-specific cautions:
   applied; fix line N", and enforce blocking rules at `Stop`.
 - **No built-in limit on stop continuations.** Codex only provides
   `stop_hook_active`; it doesn't end the turn after N blocks the way Claude Code
-  does. holdfast's own `maxStopRetries`, counted per `turn_id`, is the only thing
+  does. rulekeep's own `maxStopRetries`, counted per `turn_id`, is the only thing
   preventing an endless loop.
 - **Don't return `permissionDecision: "ask"`, `continue`, `stopReason` or
   `suppressOutput` from `PreToolUse`.** Codex marks the hook as failed and lets
   the call through.
 - **Crashes and timeouts fail open** — the tool call proceeds. That matches
-  holdfast's own fail-open rule.
+  rulekeep's own fail-open rule.
 - **`Stop` expects JSON when exiting 0.** Print `{}` rather than nothing or plain text.
 - **Trust:** Codex skips plugin hooks until the user trusts them in `/hooks`.
   The trust hash covers each hook's event, matcher, command and timeout — not the
   contents of the script it runs. Keep `hooks.json` identical between releases
-  and change only `holdfast.cjs`, so updates don't ask for approval again.
+  and change only `rulekeep.cjs`, so updates don't ask for approval again.
 
 `plugins/codex/hooks/hooks.json`:
 
 ```json
 {
-  "description": "holdfast: enforce holdfast.yaml rules",
+  "description": "rulekeep: enforce rulekeep.yaml rules",
   "hooks": {
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/holdfast.cjs\" hook codex session-start", "timeout": 30 } ] }
+      { "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/rulekeep.cjs\" hook codex session-start", "timeout": 30 } ] }
     ],
     "PreToolUse": [
-      { "matcher": "^Bash$|^apply_patch$", "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/holdfast.cjs\" hook codex pre-tool-use", "timeout": 10 } ] }
+      { "matcher": "^Bash$|^apply_patch$", "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/rulekeep.cjs\" hook codex pre-tool-use", "timeout": 10 } ] }
     ],
     "PostToolUse": [
-      { "matcher": "^apply_patch$", "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/holdfast.cjs\" hook codex post-tool-use", "timeout": 60 } ] }
+      { "matcher": "^apply_patch$", "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/rulekeep.cjs\" hook codex post-tool-use", "timeout": 60 } ] }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/holdfast.cjs\" hook codex stop", "timeout": 300 } ] }
+      { "hooks": [ { "type": "command", "command": "node \"${PLUGIN_ROOT}/dist/rulekeep.cjs\" hook codex stop", "timeout": 300 } ] }
     ]
   }
 }
@@ -614,7 +614,7 @@ needed — confirm on a real Windows machine in M5.
 
 **Different names, similar ideas.**
 
-Input fields holdfast uses: `session_id`, `cwd`, `hook_event_name`, `tool_name`,
+Input fields rulekeep uses: `session_id`, `cwd`, `hook_event_name`, `tool_name`,
 `tool_input`, `tool_response`, `prompt_response` (the final message, in
 `AfterAgent`), `stop_hook_active`.
 
@@ -648,10 +648,10 @@ Gemini-specific cautions:
 - **Print nothing but the final JSON** on stdout. Logs go to stderr.
 - **Always exit 0 with valid JSON.** Gemini CLI's docs say other exit codes are
   only warnings, but its source treats non-JSON output with an unexpected exit
-  code as a *deny*. A crashing holdfast could block the agent — the opposite of
+  code as a *deny*. A crashing rulekeep could block the agent — the opposite of
   fail-open. Catch everything and print `{}` or a `systemMessage`.
 - **No built-in retry cap at `AfterAgent`** beyond the session's turn budget.
-  holdfast's `maxStopRetries` is what stops loops.
+  rulekeep's `maxStopRetries` is what stops loops.
 - **Timeouts are in milliseconds.**
 
 `plugins/gemini-cli/hooks/hooks.json`:
@@ -660,16 +660,16 @@ Gemini-specific cautions:
 {
   "hooks": {
     "BeforeAgent": [
-      { "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/holdfast.cjs\" hook gemini-cli before-agent", "timeout": 10000 } ] }
+      { "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/rulekeep.cjs\" hook gemini-cli before-agent", "timeout": 10000 } ] }
     ],
     "BeforeTool": [
-      { "matcher": "^(run_shell_command|write_file|replace)$", "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/holdfast.cjs\" hook gemini-cli before-tool", "timeout": 10000 } ] }
+      { "matcher": "^(run_shell_command|write_file|replace)$", "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/rulekeep.cjs\" hook gemini-cli before-tool", "timeout": 10000 } ] }
     ],
     "AfterTool": [
-      { "matcher": "^(write_file|replace)$", "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/holdfast.cjs\" hook gemini-cli after-tool", "timeout": 60000 } ] }
+      { "matcher": "^(write_file|replace)$", "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/rulekeep.cjs\" hook gemini-cli after-tool", "timeout": 60000 } ] }
     ],
     "AfterAgent": [
-      { "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/holdfast.cjs\" hook gemini-cli after-agent", "timeout": 300000 } ] }
+      { "hooks": [ { "type": "command", "command": "node \"${extensionPath}/dist/rulekeep.cjs\" hook gemini-cli after-agent", "timeout": 300000 } ] }
     ]
   }
 }
@@ -677,7 +677,7 @@ Gemini-specific cautions:
 
 ### Event mapping in one table
 
-| holdfast event | Claude Code | Codex | Gemini CLI |
+| rulekeep event | Claude Code | Codex | Gemini CLI |
 | --- | --- | --- | --- |
 | `session-start` | SessionStart | SessionStart | SessionStart |
 | rule reminder | SessionStart (`compact`) | SessionStart (`compact`) | BeforeAgent (every turn) |

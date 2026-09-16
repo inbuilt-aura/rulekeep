@@ -15,7 +15,7 @@ import {
 } from '../adapters/claude-code.js';
 import { toRepoRelative } from '../adapters/paths.js';
 import { evaluate } from '../engine/evaluate.js';
-import type { Finding, FileChange, HoldfastEvent } from '../engine/events.js';
+import type { Finding, FileChange, RulekeepEvent } from '../engine/events.js';
 import { formatStopSummary, formatVerdict } from '../engine/format.js';
 import { runCheckers } from '../runtime/checker.js';
 import { loadConfig, type LoadedConfig } from '../runtime/configFile.js';
@@ -43,7 +43,7 @@ function ruleReminder(repoRoot: string): string | undefined {
     .map((rule) => `- ${rule.id} (${rule.mode})${rule.message ? `: ${rule.message}` : ''}`);
   if (lines.length === 0) return undefined;
 
-  return `holdfast rules for this repo:\n${lines.join('\n')}`;
+  return `rulekeep rules for this repo:\n${lines.join('\n')}`;
 }
 
 /**
@@ -52,7 +52,7 @@ function ruleReminder(repoRoot: string): string | undefined {
  * approval"). An untrusted config silently contributes no checker findings;
  * the user is told once, at session start, not on every edit.
  */
-function checkerFindings(loaded: LoadedConfig, event: HoldfastEvent): readonly Finding[] {
+function checkerFindings(loaded: LoadedConfig, event: RulekeepEvent): readonly Finding[] {
   const checkers = checkerRulesOf(loaded.config);
   if (checkers.length === 0 || !isTrusted(loaded.path, checkers)) return [];
   return runCheckers(checkers, event, event.repoRoot);
@@ -127,7 +127,7 @@ export function handlePostToolUse(input: ClaudeHookInput): object {
   const loaded = loadConfig(repoRoot);
   if (!loaded.ok) return {};
 
-  const event: HoldfastEvent = {
+  const event: RulekeepEvent = {
     kind: 'after-edit',
     agent: AGENT,
     sessionId: input.session_id,
@@ -146,7 +146,7 @@ export function handleStop(input: ClaudeHookInput): object {
   const changes = readChanges(AGENT, input.session_id);
   const retry = input.stop_hook_active ? readStopRetries(AGENT, input.session_id) : 0;
 
-  const event: HoldfastEvent = {
+  const event: RulekeepEvent = {
     kind: 'stop',
     agent: AGENT,
     sessionId: input.session_id,

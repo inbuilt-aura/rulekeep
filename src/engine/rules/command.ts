@@ -5,9 +5,9 @@
  * a command inside a script file.
  */
 import type { CommandRule } from '../config.js';
-import type { Finding, HoldfastEvent } from '../events.js';
+import type { Finding, RulekeepEvent } from '../events.js';
 
-export function checkCommandRule(rule: CommandRule, event: HoldfastEvent): readonly Finding[] {
+export function checkCommandRule(rule: CommandRule, event: RulekeepEvent): readonly Finding[] {
   if (event.kind !== 'before-command' || rule.mode === 'off') return [];
   if (!rule.match.test(event.command)) return [];
 

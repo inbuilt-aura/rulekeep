@@ -1,10 +1,10 @@
 {
-  "name": "holdfast",
+  "name": "rulekeep",
   "version": "0.1.0",
   "description": "Enforce your project's rules while the agent works: blocks rule-breaking commands and sends rule-breaking edits back to be fixed.",
   "author": { "name": "Aman Maddeshiya" },
-  "homepage": "https://github.com/amanmaddeshiya/holdfast",
-  "repository": "https://github.com/amanmaddeshiya/holdfast",
+  "homepage": "https://github.com/inbuilt-aura/rulekeep",
+  "repository": "https://github.com/inbuilt-aura/rulekeep",
   "license": "Apache-2.0",
   "keywords": ["rules", "hooks", "guardrails", "conventions", "tests"]
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BoundaryRule } from '../../../src/engine/config.js';
-import type { FileChange, HoldfastEvent } from '../../../src/engine/events.js';
+import type { FileChange, RulekeepEvent } from '../../../src/engine/events.js';
 import { checkBoundaryRule } from '../../../src/engine/rules/boundary.js';
 
 // LIFEWORLD's real import-direction rule (app/CLAUDE.md §4): components must
@@ -15,7 +15,7 @@ const rule: BoundaryRule = {
   disallow: ['@/repositories', '@/store', '@/features'],
 };
 
-const afterEdit = (changes: readonly FileChange[]): HoldfastEvent => ({
+const afterEdit = (changes: readonly FileChange[]): RulekeepEvent => ({
   kind: 'after-edit',
   agent: 'claude-code',
   sessionId: 's1',

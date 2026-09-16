@@ -4,9 +4,9 @@ import { parseConfig } from '../src/engine/config.js';
 
 // Guards against the shipped example silently drifting out of sync with the
 // parser — a broken example is a worse first impression than none at all.
-describe('examples/lifeworld/holdfast.yaml', () => {
+describe('examples/lifeworld/rulekeep.yaml', () => {
   it('parses with no errors', () => {
-    const source = readFileSync(new URL('../examples/lifeworld/holdfast.yaml', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../examples/lifeworld/rulekeep.yaml', import.meta.url), 'utf8');
     const result = parseConfig(source);
     expect(result.ok).toBe(true);
     if (!result.ok) {

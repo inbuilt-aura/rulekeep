@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseConfig } from '../../src/engine/config.js';
 import { evaluate } from '../../src/engine/evaluate.js';
-import type { HoldfastEvent } from '../../src/engine/events.js';
+import type { RulekeepEvent } from '../../src/engine/events.js';
 
 const CONFIG = `
 version: 1
@@ -37,7 +37,7 @@ function config() {
 
 describe('evaluate (end to end through a real parsed config)', () => {
   it('walks the whole story from docs/02-what-we-build.md: a command is blocked with a reason', () => {
-    const event: HoldfastEvent = {
+    const event: RulekeepEvent = {
       kind: 'before-command',
       agent: 'claude-code',
       sessionId: 's1',
@@ -50,7 +50,7 @@ describe('evaluate (end to end through a real parsed config)', () => {
   });
 
   it('reports both a block and a warn finding on the same edit, and the outcome is the stricter one', () => {
-    const event: HoldfastEvent = {
+    const event: RulekeepEvent = {
       kind: 'after-edit',
       agent: 'claude-code',
       sessionId: 's1',
@@ -69,7 +69,7 @@ describe('evaluate (end to end through a real parsed config)', () => {
   });
 
   it('produces "allow" with no findings for a clean edit', () => {
-    const event: HoldfastEvent = {
+    const event: RulekeepEvent = {
       kind: 'after-edit',
       agent: 'claude-code',
       sessionId: 's1',
@@ -82,7 +82,7 @@ describe('evaluate (end to end through a real parsed config)', () => {
 
   it('caps findings at 20 so a hook response never grows unbounded', () => {
     const manyLines = Array.from({ length: 30 }, (_, i) => `const v${i} = x${i} as any;`).join('\n');
-    const event: HoldfastEvent = {
+    const event: RulekeepEvent = {
       kind: 'after-edit',
       agent: 'claude-code',
       sessionId: 's1',

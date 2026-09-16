@@ -31,8 +31,8 @@ built-in rules feature is plausible.
 "make the agent follow the regex-checkable parts of CLAUDE.md". They feel misled.
 
 **What we do:**
-- The README's first screen lists what holdfast can and can't check.
-- `/holdfast:setup` explains, for each rule it *doesn't* propose, why it can't
+- The README's first screen lists what rulekeep can and can't check.
+- `/rulekeep:setup` explains, for each rule it *doesn't* propose, why it can't
   be checked by code.
 
 ### 3. False alarms make people uninstall
@@ -58,8 +58,8 @@ once broke GSD's hooks so badly that Codex wouldn't start
   commit.
 - **A weekly canary** installs the newest Claude Code, Codex and Gemini CLI and
   runs smoke tests.
-- **Fail open.** If holdfast crashes or can't parse the input, the agent carries
-  on and the user sees one warning. A broken holdfast must never stop someone
+- **Fail open.** If rulekeep crashes or can't parse the input, the agent carries
+  on and the user sees one warning. A broken rulekeep must never stop someone
   working.
 
 ### 5. Hooks make the agent slow
@@ -83,7 +83,7 @@ everywhere.
   starting point, however files were written.
 - **Overrides are always reported**, and `allowOverride: false` rules can't be
   silenced.
-- **Be honest in the README:** holdfast is a guardrail for habits, not a
+- **Be honest in the README:** rulekeep is a guardrail for habits, not a
   security sandbox.
 
 ### 7. Codex's hook approval scares users
@@ -114,7 +114,7 @@ service after teams ask for one ([07-business.md](./07-business.md)).
 
 ### 10. The name clashes
 
-**What could happen:** "holdfast" is taken on npm or GitHub, or someone objects.
+**What could happen:** "rulekeep" is taken on npm or GitHub, or someone objects.
 
 **What we do:** pick the final name before the first public release. Check npm,
 GitHub, and a web search. Never use Claude, Anthropic, GPT or Codex in it.
@@ -133,7 +133,7 @@ Answer these as the project goes. Record answers in the decision log below.
 | Q3b | ~~Which shell runs Codex hook commands on Windows?~~ **Per Codex source: `cmd.exe`.** Use the `${PLUGIN_ROOT}` brace form, which Codex substitutes itself | — | Confirm on Windows in M5 |
 | Q3c | How do users install the Gemini CLI extension from a subfolder of the repo? | Milestone 6 | Test `gemini extensions install`; fall back to a release branch or archive |
 | Q4 | Does Gemini CLI still matter? | Before milestone 6 | Activity dropped sharply in 2026; consumer "Login with Google" ended 18 June 2026; Google points users to Antigravity CLI, whose migration notes don't mention hooks. **Leaning no** — consider OpenCode or Cursor support instead |
-| Q5 | Should `/holdfast:setup` use the agent to propose rules, or a fixed parser? | Milestone 2 | Agent-proposed is more useful; always require the user to approve the file |
+| Q5 | Should `/rulekeep:setup` use the agent to propose rules, or a fixed parser? | Milestone 2 | Agent-proposed is more useful; always require the user to approve the file |
 | Q6 | Is a CLA needed? | Before accepting outside pull requests | Only if a paid, closed team service might reuse contributed code |
 | Q7 | Move the Claude Code adapter to Claude Mods? | When Mods ship | Only if it gives something hooks can't, like faster checks or better messages |
 
@@ -149,4 +149,4 @@ Answer these as the project goes. Record answers in the decision log below.
 | 2026-09-14 | No network calls, no telemetry | Hooks run on every edit on other people's machines; also required by Anthropic's directory policy | Never for the free tool |
 | 2026-09-14 | Warn by default; block is opt-in | False alarms are the main uninstall risk | Users consistently switch everything to block |
 | 2026-09-14 | Apache-2.0, free | Plugins are copyable; directories don't allow paid plugins | Teams ask for a hosted service |
-| 2026-09-14 | Working name `holdfast` | Placeholder only | Q1 |
+| 2026-09-14 | Working name `rulekeep` | Placeholder only | Q1 |

@@ -1,9 +1,9 @@
 {
-  "name": "holdfast",
-  "owner": { "name": "Aman Maddeshiya", "url": "https://github.com/amanmaddeshiya" },
+  "name": "rulekeep",
+  "owner": { "name": "Aman Maddeshiya", "url": "https://github.com/inbuilt-aura" },
   "plugins": [
     {
-      "name": "holdfast",
+      "name": "rulekeep",
       "source": "./plugins/claude-code",
       "description": "Enforce your project's rules while the agent works."
     }

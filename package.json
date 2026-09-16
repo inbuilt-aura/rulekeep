@@ -1,11 +1,19 @@
 {
-  "name": "holdfast",
+  "name": "rulekeep",
   "version": "0.0.1",
   "description": "Enforce your project's rules while an AI agent works — in Claude Code, Codex and Gemini CLI — and again in CI.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inbuilt-aura/rulekeep.git"
+  },
+  "homepage": "https://github.com/inbuilt-aura/rulekeep#readme",
+  "bugs": {
+    "url": "https://github.com/inbuilt-aura/rulekeep/issues"
+  },
   "type": "module",
   "bin": {
-    "holdfast": "dist/holdfast.cjs"
+    "rulekeep": "dist/rulekeep.cjs"
   },
   "engines": {
     "node": ">=22"
@@ -16,7 +24,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "esbuild src/cli/main.ts --bundle --platform=node --target=node22 --format=cjs --banner:js=\"#!/usr/bin/env node\" --outfile=dist/holdfast.cjs && node scripts/sync-plugin.mjs",
+    "build": "esbuild src/cli/main.ts --bundle --platform=node --target=node22 --format=cjs --banner:js=\"#!/usr/bin/env node\" --outfile=dist/rulekeep.cjs && node scripts/sync-plugin.mjs",
     "typecheck": "tsc",
     "lint": "eslint src test --max-warnings=0",
     "test": "vitest run",

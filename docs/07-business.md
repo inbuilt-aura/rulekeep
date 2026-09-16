@@ -48,7 +48,7 @@ People don't pay for text files. They pay for something **hosted**, for
 Also add:
 
 - **`TRADEMARK.md`** — says others may fork the code but not call their fork
-  "holdfast" or "holdfast Pro". This is the cheap protection that actually works
+  "rulekeep" or "rulekeep Pro". This is the cheap protection that actually works
   (BMAD does this).
 - **A contributor licence agreement (CLA)** — only if you might add a paid
   hosted product that reuses contributed code. Optional; decide before accepting
@@ -95,9 +95,9 @@ a legal letter.
 | No "GPT" in the product name. Avoid "Codex" too | OpenAI brand guidelines |
 | No selling subscriptions inside a plugin | [App guidelines](https://developers.openai.com/plugins/app-guidelines) |
 
-### What this means for holdfast
+### What this means for rulekeep
 
-holdfast is safe on all of these by design: it runs inside the user's own agent,
+rulekeep is safe on all of these by design: it runs inside the user's own agent,
 makes **no network calls**, contains no hidden instructions, and its rules come
 from a file in the user's own repo — not from a server.
 

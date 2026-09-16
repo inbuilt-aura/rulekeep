@@ -26,7 +26,7 @@ interface EventBase {
 
 export type SessionStartReason = 'startup' | 'resume' | 'clear' | 'compact';
 
-export type HoldfastEvent =
+export type RulekeepEvent =
   | (EventBase & { readonly kind: 'session-start'; readonly reason: SessionStartReason })
   | (EventBase & { readonly kind: 'before-command'; readonly command: string })
   | (EventBase & { readonly kind: 'before-edit'; readonly paths: readonly string[] })
@@ -48,7 +48,7 @@ export interface Finding {
   readonly path?: string | undefined;
   readonly line?: number | undefined;
   readonly excerpt?: string | undefined;
-  /** Present when a `holdfast-ignore` comment silenced this finding. It is still reported, never hidden. */
+  /** Present when a `rulekeep-ignore` comment silenced this finding. It is still reported, never hidden. */
   readonly override?: { readonly reason: string } | undefined;
 }
 

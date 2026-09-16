@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CommandRule } from '../../../src/engine/config.js';
-import type { HoldfastEvent } from '../../../src/engine/events.js';
+import type { RulekeepEvent } from '../../../src/engine/events.js';
 import { checkCommandRule } from '../../../src/engine/rules/command.js';
 
 const rule = (overrides: Partial<CommandRule> = {}): CommandRule => ({
@@ -13,7 +13,7 @@ const rule = (overrides: Partial<CommandRule> = {}): CommandRule => ({
   ...overrides,
 });
 
-const beforeCommand = (command: string): HoldfastEvent => ({
+const beforeCommand = (command: string): RulekeepEvent => ({
   kind: 'before-command',
   agent: 'claude-code',
   sessionId: 's1',
@@ -34,7 +34,7 @@ describe('checkCommandRule', () => {
   });
 
   it('does not fire for any other event kind', () => {
-    const event: HoldfastEvent = {
+    const event: RulekeepEvent = {
       kind: 'after-edit',
       agent: 'claude-code',
       sessionId: 's1',

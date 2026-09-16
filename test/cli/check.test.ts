@@ -1,5 +1,5 @@
 /**
- * `holdfast check` — the CI backstop (docs/03-architecture.md "CI mode").
+ * `rulekeep check` — the CI backstop (docs/03-architecture.md "CI mode").
  *
  * These build a real git repository in a temp folder and run the command
  * against real commits. `changesSinceRef` shells out to git, so a fake would
@@ -43,13 +43,13 @@ const write = (relativePath: string, content: string): void => {
 };
 
 beforeEach(() => {
-  repo = mkdtempSync(join(tmpdir(), 'holdfast-check-'));
+  repo = mkdtempSync(join(tmpdir(), 'rulekeep-check-'));
   git('init', '-q', '-b', 'main');
   git('config', 'user.email', 'test@example.com');
   git('config', 'user.name', 'Test');
   git('config', 'commit.gpgsign', 'false');
 
-  write('holdfast.yaml', CONFIG);
+  write('rulekeep.yaml', CONFIG);
   write('src/base.ts', 'export const a = 1;\n');
   git('add', '-A');
   git('commit', '-qm', 'base');
@@ -66,7 +66,7 @@ afterEach(() => {
 const check = (format: 'text' | 'github' | 'json' = 'text'): ReturnType<typeof runCheck> =>
   runCheck({ base: 'HEAD', format, repoRoot: repo, runCheckers: false });
 
-describe('holdfast check', () => {
+describe('rulekeep check', () => {
   it('passes with exit 0 when nothing changed', () => {
     const result = check();
     expect(result.exitCode).toBe(0);
@@ -114,7 +114,7 @@ describe('holdfast check', () => {
   });
 
   it('reports overrides rather than hiding them', () => {
-    write('src/ov.ts', 'const d = y as any; // holdfast-ignore no-any: vendor types are wrong\n');
+    write('src/ov.ts', 'const d = y as any; // rulekeep-ignore no-any: vendor types are wrong\n');
 
     const result = check();
     expect(result.exitCode).toBe(0);
@@ -141,26 +141,26 @@ describe('holdfast check', () => {
   });
 
   it('exits 2 — a distinct code from "rules broken" — when the config is invalid', () => {
-    write('holdfast.yaml', 'version: 1\nrules: [ broken');
+    write('rulekeep.yaml', 'version: 1\nrules: [ broken');
 
     const result = check();
     expect(result.exitCode).toBe(2);
     expect(result.output).toContain('invalid');
   });
 
-  it('passes quietly when the repo has no holdfast.yaml', () => {
-    rmSync(join(repo, 'holdfast.yaml'));
+  it('passes quietly when the repo has no rulekeep.yaml', () => {
+    rmSync(join(repo, 'rulekeep.yaml'));
 
     const result = check();
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain('no holdfast.yaml');
+    expect(result.output).toContain('no rulekeep.yaml');
   });
 });
 
-describe('holdfast check — checker rules', () => {
+describe('rulekeep check — checker rules', () => {
   it('runs checkers in CI without the interactive trust prompt, and fails on a failing one', () => {
     write(
-      'holdfast.yaml',
+      'rulekeep.yaml',
       `${CONFIG}
   - id: must-pass
     type: checker
@@ -178,7 +178,7 @@ describe('holdfast check — checker rules', () => {
 
   it('passes when the checker command succeeds', () => {
     write(
-      'holdfast.yaml',
+      'rulekeep.yaml',
       `${CONFIG}
   - id: must-pass
     type: checker
@@ -194,7 +194,7 @@ describe('holdfast check — checker rules', () => {
 
   it('skips checkers entirely when --no-checkers is passed', () => {
     write(
-      'holdfast.yaml',
+      'rulekeep.yaml',
       `${CONFIG}
   - id: must-pass
     type: checker
@@ -209,11 +209,11 @@ describe('holdfast check — checker rules', () => {
   });
 });
 
-describe('holdfast check — fail open', () => {
+describe('rulekeep check — fail open', () => {
   it('rejects an infinite checker timeout at parse time rather than crashing', () => {
     // `.inf` is a number and is > 0, and spawnSync throws on it. Before this
-    // was validated, `holdfast check` died with an unhandled RangeError.
-    write('holdfast.yaml', `${CONFIG}
+    // was validated, `rulekeep check` died with an unhandled RangeError.
+    write('rulekeep.yaml', `${CONFIG}
   - id: bad
     type: checker
     run: node -e "process.exit(0)"

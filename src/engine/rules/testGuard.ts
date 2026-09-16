@@ -5,7 +5,7 @@
  */
 import { ruleAppliesTo, type TestGuardRule } from '../config.js';
 import { changedLines } from '../diff.js';
-import type { Finding, HoldfastEvent } from '../events.js';
+import type { Finding, RulekeepEvent } from '../events.js';
 import { findOverride } from '../overrides.js';
 
 const SKIP_OR_FOCUS =
@@ -68,7 +68,7 @@ function findRemovedAssertions(rule: TestGuardRule, path: string, before: string
   ];
 }
 
-export function checkTestGuardRule(rule: TestGuardRule, event: HoldfastEvent): readonly Finding[] {
+export function checkTestGuardRule(rule: TestGuardRule, event: RulekeepEvent): readonly Finding[] {
   if ((event.kind !== 'after-edit' && event.kind !== 'stop') || rule.mode === 'off') return [];
 
   const findings: Finding[] = [];

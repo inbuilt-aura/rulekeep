@@ -1,13 +1,13 @@
-# holdfast — build guide
+# rulekeep — build guide
 
 > **Your project's rules, enforced while the AI works.**
 
-This folder is the complete plan for building **holdfast**: a plugin that makes
+This folder is the complete plan for building **rulekeep**: a plugin that makes
 AI coding agents (Claude Code, Codex, Gemini CLI) follow a project's rules, and
 checks the same rules again in CI. It covers what to build, why, how to build
 it, how to test it, how to publish it, and how it could make money.
 
-`holdfast` is a working name. See [Q1](./08-risks-and-decisions.md#open-questions).
+`rulekeep` is a working name. See [Q1](./08-risks-and-decisions.md#open-questions).
 
 ---
 
@@ -17,15 +17,15 @@ Every project tells its AI agent the rules — in `CLAUDE.md`, `AGENTS.md`,
 `GEMINI.md`. The agent breaks them anyway. Thousands of people have said so on
 GitHub.
 
-holdfast turns those rules into **hooks**: small checks the agent runs
+rulekeep turns those rules into **hooks**: small checks the agent runs
 automatically before a command, after an edit, and before it says it's done.
 When a rule is broken, the agent is told exactly what and why, and fixes it
 while it still has the task in mind.
 
 ```
- you write rules once            the agent works             holdfast checks
+ you write rules once            the agent works             rulekeep checks
  ┌────────────────┐         ┌──────────────────────┐     ┌─────────────────────┐
- │ holdfast.yaml  │ ──────► │ runs a command       │ ──► │ command rules       │
+ │ rulekeep.yaml  │ ──────► │ runs a command       │ ──► │ command rules       │
  │                │         │ edits a file         │ ──► │ line, boundary,     │
  │ no `any`       │         │                      │     │ test-guard rules    │
  │ no hex colors  │         │ says "done"          │ ──► │ checkers, full diff │
@@ -33,7 +33,7 @@ while it still has the task in mind.
  └────────────────┘                    │   "rule X broken here,     │
                                        └─────  fix it" ◄────────────┘
 
- same rules in CI:  npx holdfast check --base origin/main
+ same rules in CI:  npx rulekeep check --base origin/main
 ```
 
 - **Works in** Claude Code, Codex and Gemini CLI, plus CI.
@@ -48,7 +48,7 @@ while it still has the task in mind.
 | # | Chapter | What's in it | Read it if you… |
 | --- | --- | --- | --- |
 | 1 | [Why build this](./01-why.md) | The problem, proof people have it, why hooks work, competitors, why this idea beat nine others | want to know if it's worth building |
-| 2 | [What we build](./02-what-we-build.md) | Users, what they see, the `holdfast.yaml` format, all seven rule types, overrides, commands, what's out of scope, versions | need the product spec |
+| 2 | [What we build](./02-what-we-build.md) | Users, what they see, the `rulekeep.yaml` format, all seven rule types, overrides, commands, what's out of scope, versions | need the product spec |
 | 3 | [How it works](./03-architecture.md) | Components, data flow for each agent, how diffs are computed, the exact hook formats, performance, security | are about to write code |
 | 4 | [Build plan](./04-build-plan.md) | Step-by-step from an empty folder to v1.0, with code for the key files and a "done when" for every milestone | are building it |
 | 5 | [Testing](./05-testing.md) | Seven test layers, example tests, CI workflow, plugin evals, dogfooding on LIFEWORLD | are building or reviewing it |
@@ -77,9 +77,9 @@ you've lost a week, not two months.
 | **Hook** | A command the agent runs automatically at a fixed moment (before a tool, after a tool, before stopping). It gets JSON describing what's happening and can answer "allow", "block" or "here's feedback" |
 | **Plugin** | A package that adds hooks, skills and other features to an agent. Installed from a GitHub repo |
 | **Marketplace** | A list of plugins a user can install from. Any GitHub repo with a `marketplace.json` can be one |
-| **Skill** | Instructions the agent follows when asked, like `/holdfast:setup` |
-| **Rule** | One check in `holdfast.yaml`, such as "no `any` in app code" |
-| **Adapter** | The part of holdfast that translates one agent's hook format into holdfast's own format, and back |
+| **Skill** | Instructions the agent follows when asked, like `/rulekeep:setup` |
+| **Rule** | One check in `rulekeep.yaml`, such as "no `any` in app code" |
+| **Adapter** | The part of rulekeep that translates one agent's hook format into rulekeep's own format, and back |
 | **Rule engine** | The part that decides whether a change breaks a rule. Knows nothing about any agent |
 | **Turn** | One round of work: the user asks, the agent works, the agent stops and replies |
 | **Compaction** | When a conversation gets too long, the agent summarises older parts to save space |

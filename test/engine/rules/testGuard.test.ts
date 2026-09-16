@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TestGuardRule } from '../../../src/engine/config.js';
-import type { FileChange, HoldfastEvent } from '../../../src/engine/events.js';
+import type { FileChange, RulekeepEvent } from '../../../src/engine/events.js';
 import { checkTestGuardRule } from '../../../src/engine/rules/testGuard.js';
 
 const rule = (overrides: Partial<TestGuardRule> = {}): TestGuardRule => ({
@@ -14,7 +14,7 @@ const rule = (overrides: Partial<TestGuardRule> = {}): TestGuardRule => ({
   ...overrides,
 });
 
-const afterEdit = (changes: readonly FileChange[]): HoldfastEvent => ({
+const afterEdit = (changes: readonly FileChange[]): RulekeepEvent => ({
   kind: 'after-edit',
   agent: 'claude-code',
   sessionId: 's1',

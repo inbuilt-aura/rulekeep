@@ -1,5 +1,5 @@
 /**
- * Finds and reads holdfast.yaml (the only impure part of config handling —
+ * Finds and reads rulekeep.yaml (the only impure part of config handling —
  * the engine's config.ts only ever sees the text). Walks up from a starting
  * directory the way most project-config loaders do, so a hook running from a
  * subfolder still finds the repo-root config.
@@ -14,10 +14,10 @@ export type LoadedConfig = { readonly ok: true; readonly config: Config; readonl
 export type LoadResult =
   | LoadedConfig
   | { readonly ok: false; readonly errors: readonly ConfigError[]; readonly path?: string }
-  /** No holdfast.yaml anywhere above `startDir` — not an error, just "nothing to enforce yet". */
+  /** No rulekeep.yaml anywhere above `startDir` — not an error, just "nothing to enforce yet". */
   | { readonly ok: false; readonly errors: []; readonly path: undefined };
 
-const CONFIG_FILENAME = 'holdfast.yaml';
+const CONFIG_FILENAME = 'rulekeep.yaml';
 const MAX_ANCESTORS = 50; // generous upper bound; stops a symlink loop from spinning forever
 
 export function findConfigPath(startDir: string): string | undefined {

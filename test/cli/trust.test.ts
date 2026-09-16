@@ -1,7 +1,7 @@
 /**
- * `holdfast trust` — the command the /holdfast:trust skill drives
+ * `rulekeep trust` — the command the /rulekeep:trust skill drives
  * (docs/04-build-plan.md M4 step 2). Exercised against a real config on
- * disk, with HOLDFAST_HOME redirected so the real trust file is untouched.
+ * disk, with RULEKEEP_HOME redirected so the real trust file is untouched.
  */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runTrust } from '../../src/cli/trust.js';
 
 let repo: string;
-const originalHome = process.env.HOLDFAST_HOME;
+const originalHome = process.env.RULEKEEP_HOME;
 
 const WITH_CHECKERS = `
 version: 1
@@ -24,8 +24,8 @@ rules:
 `;
 
 beforeEach(() => {
-  repo = mkdtempSync(join(tmpdir(), 'holdfast-cli-trust-'));
-  process.env.HOLDFAST_HOME = join(repo, '.holdfast-home');
+  repo = mkdtempSync(join(tmpdir(), 'rulekeep-cli-trust-'));
+  process.env.RULEKEEP_HOME = join(repo, '.rulekeep-home');
 });
 
 afterEach(() => {
@@ -34,13 +34,13 @@ afterEach(() => {
   } catch {
     // Temp folder; the OS will reclaim it.
   }
-  if (originalHome === undefined) delete process.env.HOLDFAST_HOME;
-  else process.env.HOLDFAST_HOME = originalHome;
+  if (originalHome === undefined) delete process.env.RULEKEEP_HOME;
+  else process.env.RULEKEEP_HOME = originalHome;
 });
 
-const writeConfig = (source: string): void => writeFileSync(join(repo, 'holdfast.yaml'), source, 'utf8');
+const writeConfig = (source: string): void => writeFileSync(join(repo, 'rulekeep.yaml'), source, 'utf8');
 
-describe('holdfast trust', () => {
+describe('rulekeep trust', () => {
   it('lists the commands and reports them as not trusted before approval', () => {
     writeConfig(WITH_CHECKERS);
     const result = runTrust(repo, 'list');
@@ -103,6 +103,6 @@ describe('holdfast trust', () => {
   it('reports plainly when there is no config at all', () => {
     const result = runTrust(repo, 'list');
     expect(result.exitCode).toBe(1);
-    expect(result.output).toContain('no holdfast.yaml');
+    expect(result.output).toContain('no rulekeep.yaml');
   });
 });

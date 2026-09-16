@@ -31,7 +31,7 @@ export const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 export const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit']);
 
 /**
- * Never returns `permissionDecision: "allow"` — holdfast has no business
+ * Never returns `permissionDecision: "allow"` — rulekeep has no business
  * skipping the user's own permission prompt just because no rule fired
  * (docs/03-architecture.md, note under "PreToolUse, command blocked").
  */
@@ -66,7 +66,7 @@ export function toClaudeStopOutput(verdict: Verdict, reason: string, exhaustedSu
   if (verdict.outcome === 'block' && exhaustedSummary === undefined) {
     return { decision: 'block', reason };
   }
-  // Either nothing is blocking, or the retry budget ran out and holdfast is
+  // Either nothing is blocking, or the retry budget ran out and rulekeep is
   // letting the agent stop — say what's still open to the user instead.
   return exhaustedSummary ? { systemMessage: exhaustedSummary } : {};
 }

@@ -2,7 +2,7 @@
  * Hook contract tests (docs/05-testing.md "Layer 2: hook contract tests").
  *
  * These drive the four Claude Code hook handlers with the exact JSON shapes
- * Claude Code actually sends, against a real holdfast.yaml on a real
+ * Claude Code actually sends, against a real rulekeep.yaml on a real
  * filesystem, and assert on the exact JSON shapes it expects back. Unit tests
  * prove a rule matches; these prove the whole path — payload in, snapshot,
  * config discovery, evaluation, verdict out — is wired together correctly,
@@ -48,15 +48,15 @@ rules:
 let repo: string;
 let sessionCounter = 0;
 const originalProjectDir = process.env.CLAUDE_PROJECT_DIR;
-const originalHome = process.env.HOLDFAST_HOME;
+const originalHome = process.env.RULEKEEP_HOME;
 
 beforeEach(() => {
-  repo = mkdtempSync(join(tmpdir(), 'holdfast-contract-'));
-  writeFileSync(join(repo, 'holdfast.yaml'), CONFIG, 'utf8');
+  repo = mkdtempSync(join(tmpdir(), 'rulekeep-contract-'));
+  writeFileSync(join(repo, 'rulekeep.yaml'), CONFIG, 'utf8');
   mkdirSync(join(repo, 'src'), { recursive: true });
   process.env.CLAUDE_PROJECT_DIR = repo;
-  // Keep the suite away from the real ~/.holdfast.
-  process.env.HOLDFAST_HOME = join(repo, '.holdfast-home');
+  // Keep the suite away from the real ~/.rulekeep.
+  process.env.RULEKEEP_HOME = join(repo, '.rulekeep-home');
   sessionCounter += 1;
 });
 
@@ -68,8 +68,8 @@ afterEach(() => {
   }
   if (originalProjectDir === undefined) delete process.env.CLAUDE_PROJECT_DIR;
   else process.env.CLAUDE_PROJECT_DIR = originalProjectDir;
-  if (originalHome === undefined) delete process.env.HOLDFAST_HOME;
-  else process.env.HOLDFAST_HOME = originalHome;
+  if (originalHome === undefined) delete process.env.RULEKEEP_HOME;
+  else process.env.RULEKEEP_HOME = originalHome;
 });
 
 const sessionId = (): string => `contract-session-${sessionCounter}`;
@@ -154,10 +154,10 @@ describe('PostToolUse — edits', () => {
     expect(performEdit('src/clean.ts', 'export const a = 1;\n', 'tool-3')).toEqual({});
   });
 
-  it('honours a holdfast-ignore override on the offending line', () => {
+  it('honours a rulekeep-ignore override on the offending line', () => {
     const output = performEdit(
       'src/override.ts',
-      'const data = response as any; // holdfast-ignore no-any: third-party types are wrong\n',
+      'const data = response as any; // rulekeep-ignore no-any: third-party types are wrong\n',
       'tool-4',
     );
     expect(output).toEqual({});
@@ -215,7 +215,7 @@ describe('Stop', () => {
   });
 
   it('reports overrides used, so a silenced rule is never invisible', () => {
-    performEdit('src/ov.ts', 'const d = x as any; // holdfast-ignore no-any: vendor types\n', 'tool-e');
+    performEdit('src/ov.ts', 'const d = x as any; // rulekeep-ignore no-any: vendor types\n', 'tool-e');
     const output = handleStop(stopPayload(false)) as { systemMessage?: string };
     expect(output.systemMessage).toContain('override');
   });
@@ -247,7 +247,7 @@ describe('SessionStart', () => {
 
   it('asks for approval once when the repo has untrusted checker commands', () => {
     writeFileSync(
-      join(repo, 'holdfast.yaml'),
+      join(repo, 'rulekeep.yaml'),
       `${CONFIG}\n  - id: typecheck\n    type: checker\n    run: npm run typecheck\n    on: stop\n`,
       'utf8',
     );
@@ -260,13 +260,13 @@ describe('SessionStart', () => {
     }) as { hookSpecificOutput?: { additionalContext?: string } };
 
     expect(output.hookSpecificOutput?.additionalContext).toContain('npm run typecheck');
-    expect(output.hookSpecificOutput?.additionalContext).toContain('/holdfast:trust');
+    expect(output.hookSpecificOutput?.additionalContext).toContain('/rulekeep:trust');
   });
 });
 
 describe('fail open', () => {
-  it('says nothing at all when holdfast.yaml is invalid, rather than blocking work', () => {
-    writeFileSync(join(repo, 'holdfast.yaml'), 'version: 1\nrules: [ this is not valid', 'utf8');
+  it('says nothing at all when rulekeep.yaml is invalid, rather than blocking work', () => {
+    writeFileSync(join(repo, 'rulekeep.yaml'), 'version: 1\nrules: [ this is not valid', 'utf8');
 
     expect(handlePreToolUse(bashPayload('git push --force'))).toEqual({});
     expect(performEdit('src/x.ts', 'const a = b as any;\n', 'tool-f')).toEqual({});
@@ -275,8 +275,8 @@ describe('fail open', () => {
     ).toEqual({});
   });
 
-  it('says nothing when there is no holdfast.yaml anywhere', () => {
-    rmSync(join(repo, 'holdfast.yaml'));
+  it('says nothing when there is no rulekeep.yaml anywhere', () => {
+    rmSync(join(repo, 'rulekeep.yaml'));
     expect(handlePreToolUse(bashPayload('git push --force'))).toEqual({});
   });
 });

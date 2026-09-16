@@ -9184,7 +9184,7 @@ function parseConfig(source) {
   if (errors.length > 0) return { ok: false, errors };
   const root = doc.contents;
   if (!(0, import_yaml.isMap)(root)) {
-    return { ok: false, errors: [{ line: 1, message: "holdfast.yaml must be a mapping at the top level." }] };
+    return { ok: false, errors: [{ line: 1, message: "rulekeep.yaml must be a mapping at the top level." }] };
   }
   const rootJson = doc.toJS();
   const version = rootJson.version;
@@ -9585,7 +9585,7 @@ function changedLines(before, after) {
 }
 
 // src/engine/overrides.ts
-var OVERRIDE = /holdfast-ignore\s+([a-z0-9-]+)\s*:\s*(\S.*)$/i;
+var OVERRIDE = /rulekeep-ignore\s+([a-z0-9-]+)\s*:\s*(\S.*)$/i;
 function parseOverride(line) {
   if (line === void 0) return void 0;
   const match = OVERRIDE.exec(line);
@@ -9799,7 +9799,7 @@ function evaluate(rules, event, extra = []) {
 }
 
 // src/engine/format.ts
-var TOOL_NAME = "holdfast";
+var TOOL_NAME = "rulekeep";
 var SUBJECTS = {
   command: { headline: "this command breaks", fix: "Fix the command, then continue." },
   edit: { headline: "this edit breaks", fix: "Fix the edit, then continue." },
@@ -9822,7 +9822,7 @@ function formatVerdict(verdict, subject) {
   const noun = active.length === 1 ? "1 rule" : `${active.length} rules`;
   const header = `${TOOL_NAME}: ${SUBJECTS[subject].headline} ${noun}${subject === "work" ? " broken" : ""}.`;
   const body = active.map(lineFor).join("\n\n");
-  const footer = verdict.outcome === "block" ? `${SUBJECTS[subject].fix} If this is a genuine exception, add \`// holdfast-ignore <rule-id>: <reason>\` on that line.` : "";
+  const footer = verdict.outcome === "block" ? `${SUBJECTS[subject].fix} If this is a genuine exception, add \`// rulekeep-ignore <rule-id>: <reason>\` on that line.` : "";
   return [header, "", body, footer].filter((part) => part !== "").join("\n");
 }
 function formatStopSummary(verdict) {
@@ -9847,7 +9847,9 @@ var MAX_OUTPUT_LINES = 40;
 var MAX_LINE_LENGTH2 = 500;
 var MAX_TIMEOUT_MS = 3600 * 1e3;
 var MAX_BUFFER_BYTES = 64 * 1024 * 1024;
-var ANSI_PATTERN = /\[[0-9;]*[A-Za-z]|\][^]*/g;
+var ESC = String.fromCharCode(27);
+var BEL = String.fromCharCode(7);
+var ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*[A-Za-z]|${ESC}\\][^${BEL}]*${BEL}`, "g");
 function stripAnsi(text) {
   return text.replace(ANSI_PATTERN, "");
 }
@@ -9916,7 +9918,7 @@ ${outcome.output}` : detail
 // src/runtime/configFile.ts
 var import_node_fs = require("node:fs");
 var import_node_path2 = require("node:path");
-var CONFIG_FILENAME = "holdfast.yaml";
+var CONFIG_FILENAME = "rulekeep.yaml";
 var MAX_ANCESTORS = 50;
 function findConfigPath(startDir) {
   let dir = startDir;
@@ -9981,10 +9983,10 @@ var import_node_crypto = require("node:crypto");
 var import_node_fs3 = require("node:fs");
 var import_node_os = require("node:os");
 var import_node_path4 = require("node:path");
-var TRUST_DIR_NAME = ".holdfast";
+var TRUST_DIR_NAME = ".rulekeep";
 var TRUST_FILE_NAME = "trusted.json";
 function trustFilePath() {
-  return (0, import_node_path4.join)(process.env.HOLDFAST_HOME ?? (0, import_node_path4.join)((0, import_node_os.homedir)(), TRUST_DIR_NAME), TRUST_FILE_NAME);
+  return (0, import_node_path4.join)(process.env.RULEKEEP_HOME ?? (0, import_node_path4.join)((0, import_node_os.homedir)(), TRUST_DIR_NAME), TRUST_FILE_NAME);
 }
 function checkerRulesOf(config) {
   return config.rules.filter((rule) => rule.type === "checker" && rule.mode !== "off");
@@ -10042,9 +10044,9 @@ function untrustedNotice(configPath, rules) {
   const width = Math.max(...rules.map((rule) => rule.run.length));
   const lines = rules.map((rule) => `  ${rule.run.padEnd(width)}  (${rule.id})`);
   return [
-    `holdfast: this repo's holdfast.yaml wants to run ${rules.length} ${noun}:`,
+    `rulekeep: this repo's rulekeep.yaml wants to run ${rules.length} ${noun}:`,
     ...lines,
-    "Run /holdfast:trust to allow them. Other rules are active."
+    "Run /rulekeep:trust to allow them. Other rules are active."
   ].join("\n");
 }
 
@@ -10057,10 +10059,10 @@ function runCheck(options) {
   const loaded = loadConfig(options.repoRoot);
   if (!loaded.ok) {
     if (loaded.path === void 0) {
-      return { exitCode: 0, output: "holdfast: no holdfast.yaml found \u2014 nothing to check." };
+      return { exitCode: 0, output: "rulekeep: no rulekeep.yaml found \u2014 nothing to check." };
     }
     const message = loaded.errors.map((e) => `  ${loaded.path}:${e.line}: ${e.message}`).join("\n");
-    return { exitCode: 2, output: `holdfast: holdfast.yaml is invalid:
+    return { exitCode: 2, output: `rulekeep: rulekeep.yaml is invalid:
 ${message}` };
   }
   const changes = changesSinceRef(options.repoRoot, options.base);
@@ -10080,7 +10082,7 @@ ${message}` };
       checkerResults = runCheckers(checkerRulesOf(loaded.config), event, options.repoRoot);
     } catch (cause) {
       checkerResults = [
-        { ruleId: "holdfast", mode: "warn", message: `checker rules could not run: ${cause.message}` }
+        { ruleId: "rulekeep", mode: "warn", message: `checker rules could not run: ${cause.message}` }
       ];
     }
   }
@@ -10097,9 +10099,9 @@ ${message}` };
     return { exitCode: verdict.outcome === "block" ? 1 : 0, output: lines.join("\n") };
   }
   if (active.length === 0 && overridden.length === 0) {
-    return { exitCode: 0, output: `holdfast: no rules broken across ${changes.length} changed file(s).` };
+    return { exitCode: 0, output: `rulekeep: no rules broken across ${changes.length} changed file(s).` };
   }
-  const parts = [formatVerdict(verdict, "work") || "holdfast: no active findings."];
+  const parts = [formatVerdict(verdict, "work") || "rulekeep: no active findings."];
   if (overridden.length > 0) {
     parts.push(
       "",
@@ -10116,7 +10118,7 @@ function runDoctor(repoRoot) {
   const lines = [];
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   lines.push(
-    nodeMajor >= MIN_NODE_MAJOR ? `\u2714 Node.js ${process.versions.node} (>= ${MIN_NODE_MAJOR} required)` : `\u2718 Node.js ${process.versions.node} \u2014 holdfast needs Node ${MIN_NODE_MAJOR} or newer`
+    nodeMajor >= MIN_NODE_MAJOR ? `\u2714 Node.js ${process.versions.node} (>= ${MIN_NODE_MAJOR} required)` : `\u2718 Node.js ${process.versions.node} \u2014 rulekeep needs Node ${MIN_NODE_MAJOR} or newer`
   );
   const loaded = loadConfig(repoRoot);
   if (loaded.ok) {
@@ -10124,7 +10126,7 @@ function runDoctor(repoRoot) {
     const offCount = loaded.config.rules.filter((r) => r.mode === "off").length;
     if (offCount > 0) lines.push(`  (${offCount} rule(s) set to "off")`);
   } else if (loaded.path === void 0) {
-    lines.push("\u2718 No holdfast.yaml found above this directory. Run /holdfast:setup to create one.");
+    lines.push("\u2718 No rulekeep.yaml found above this directory. Run /rulekeep:setup to create one.");
   } else {
     lines.push(`\u2718 ${loaded.path} is invalid:`);
     for (const error of loaded.errors) lines.push(`    line ${error.line}: ${error.message}`);
@@ -10186,7 +10188,7 @@ var import_node_path7 = require("node:path");
 var import_node_fs4 = require("node:fs");
 var import_node_os2 = require("node:os");
 var import_node_path6 = require("node:path");
-var ROOT_DIR_NAME = "holdfast";
+var ROOT_DIR_NAME = "rulekeep";
 var STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1e3;
 function safe(value) {
   return value.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -10253,7 +10255,7 @@ function cleanupStaleSessions() {
 }
 
 // src/runtime/snapshot.ts
-var MISSING_MARKER = "\0holdfast:file-did-not-exist\0";
+var MISSING_MARKER = "\0rulekeep:file-did-not-exist\0";
 function snapshotPath(agent, sessionId, toolUseId) {
   return (0, import_node_path7.join)(sessionDir(agent, sessionId), "snapshots", encodeURIComponent(toolUseId));
 }
@@ -10283,7 +10285,7 @@ function ruleReminder(repoRoot) {
   if (!loaded.ok || loaded.config.rules.length === 0) return void 0;
   const lines = loaded.config.rules.filter((rule) => rule.mode !== "off").map((rule) => `- ${rule.id} (${rule.mode})${rule.message ? `: ${rule.message}` : ""}`);
   if (lines.length === 0) return void 0;
-  return `holdfast rules for this repo:
+  return `rulekeep rules for this repo:
 ${lines.join("\n")}`;
 }
 function checkerFindings(loaded, event) {
@@ -10389,38 +10391,38 @@ function runTrust(repoRoot, action) {
   const loaded = loadConfig(repoRoot);
   if (!loaded.ok) {
     if (loaded.path === void 0) {
-      return { exitCode: 1, output: "holdfast: no holdfast.yaml found \u2014 nothing to trust." };
+      return { exitCode: 1, output: "rulekeep: no rulekeep.yaml found \u2014 nothing to trust." };
     }
     const detail = loaded.errors.map((error) => `  ${loaded.path}:${error.line}: ${error.message}`).join("\n");
-    return { exitCode: 2, output: `holdfast: holdfast.yaml is invalid, so its checkers cannot be trusted:
+    return { exitCode: 2, output: `rulekeep: rulekeep.yaml is invalid, so its checkers cannot be trusted:
 ${detail}` };
   }
   const checkers = checkerRulesOf(loaded.config);
   if (checkers.length === 0) {
-    return { exitCode: 0, output: `holdfast: ${loaded.path} has no checker rules \u2014 nothing to trust.` };
+    return { exitCode: 0, output: `rulekeep: ${loaded.path} has no checker rules \u2014 nothing to trust.` };
   }
   const width = Math.max(...checkers.map((rule) => rule.run.length));
   const listing = checkers.map((rule) => `  ${rule.run.padEnd(width)}  (${rule.id})`).join("\n");
   switch (action) {
     case "list": {
-      const state = isTrusted(loaded.path, checkers) ? "trusted" : "NOT trusted \u2014 run `holdfast trust` to approve";
-      return { exitCode: 0, output: `holdfast: ${checkers.length} checker command(s) in ${loaded.path} (${state}):
+      const state = isTrusted(loaded.path, checkers) ? "trusted" : "NOT trusted \u2014 run `rulekeep trust` to approve";
+      return { exitCode: 0, output: `rulekeep: ${checkers.length} checker command(s) in ${loaded.path} (${state}):
 ${listing}` };
     }
     case "revoke": {
       const removed = revoke(loaded.path);
       return {
         exitCode: 0,
-        output: removed ? `holdfast: revoked approval for ${loaded.path}. Its checkers will not run until approved again.` : `holdfast: nothing to revoke \u2014 ${loaded.path} was not approved.`
+        output: removed ? `rulekeep: revoked approval for ${loaded.path}. Its checkers will not run until approved again.` : `rulekeep: nothing to revoke \u2014 ${loaded.path} was not approved.`
       };
     }
     case "approve": {
       if (isTrusted(loaded.path, checkers)) {
-        return { exitCode: 0, output: `holdfast: already trusted \u2014 these ${checkers.length} command(s) will run:
+        return { exitCode: 0, output: `rulekeep: already trusted \u2014 these ${checkers.length} command(s) will run:
 ${listing}` };
       }
       trust(loaded.path, checkers);
-      return { exitCode: 0, output: `holdfast: approved. These ${checkers.length} command(s) will now run for ${loaded.path}:
+      return { exitCode: 0, output: `rulekeep: approved. These ${checkers.length} command(s) will now run for ${loaded.path}:
 ${listing}` };
     }
   }
@@ -10433,7 +10435,7 @@ function safe2(value) {
   return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
 }
 function recordPayload(agent, event, payload) {
-  const dir = process.env.HOLDFAST_RECORD;
+  const dir = process.env.RULEKEEP_RECORD;
   if (!dir) return;
   try {
     const target = (0, import_node_path8.join)(dir, safe2(agent));
@@ -10456,7 +10458,7 @@ async function runHook(agent, event) {
     const output = event === "session-start" ? handleSessionStart(input) : event === "pre-tool-use" ? handlePreToolUse(input) : event === "post-tool-use" ? handlePostToolUse(input) : event === "stop" ? handleStop(input) : {};
     process.stdout.write(JSON.stringify(output));
   } catch (error) {
-    process.stdout.write(JSON.stringify({ systemMessage: `holdfast: internal error, rules not applied (${error.message})` }));
+    process.stdout.write(JSON.stringify({ systemMessage: `rulekeep: internal error, rules not applied (${error.message})` }));
   }
   process.exit(0);
 }
@@ -10466,11 +10468,11 @@ function runCheckCommand(args) {
   const formatIndex = args.indexOf("--format");
   const format = formatIndex >= 0 ? args[formatIndex + 1] : "text";
   if (!base) {
-    console.error("holdfast check: --base <ref> is required, e.g. --base origin/main");
+    console.error("rulekeep check: --base <ref> is required, e.g. --base origin/main");
     process.exit(2);
   }
   if (format !== "text" && format !== "github" && format !== "json") {
-    console.error(`holdfast check: --format must be text, github or json (got "${format}")`);
+    console.error(`rulekeep check: --format must be text, github or json (got "${format}")`);
     process.exit(2);
   }
   const result = runCheck({
@@ -10508,13 +10510,13 @@ async function main() {
     default:
       console.error(
         [
-          "holdfast \u2014 enforce your project's rules while an AI agent works.",
+          "rulekeep \u2014 enforce your project's rules while an AI agent works.",
           "",
           "Usage:",
-          "  holdfast hook <agent> <event>     (called by an agent's own hook config)",
-          "  holdfast check --base <ref>       (run every rule against changes since <ref>)",
-          "  holdfast trust [--list|--revoke]  (approve this repo's checker commands)",
-          "  holdfast doctor                   (check Node version and holdfast.yaml)"
+          "  rulekeep hook <agent> <event>     (called by an agent's own hook config)",
+          "  rulekeep check --base <ref>       (run every rule against changes since <ref>)",
+          "  rulekeep trust [--list|--revoke]  (approve this repo's checker commands)",
+          "  rulekeep doctor                   (check Node version and rulekeep.yaml)"
         ].join("\n")
       );
       process.exit(command === void 0 ? 0 : 1);

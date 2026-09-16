@@ -3,14 +3,14 @@
  * finding (docs/03-architecture.md, docs/04-build-plan.md M4 step 1).
  *
  * This is the one rule type that executes something from the repo's own
- * holdfast.yaml, so it only ever runs for a config the user has trusted —
+ * rulekeep.yaml, so it only ever runs for a config the user has trusted —
  * the caller enforces that via runtime/trust.ts. Everything here is impure
  * by definition, which is why it lives in src/runtime and not the engine.
  */
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { isAbsolute, resolve } from 'node:path';
 import type { CheckerRule } from '../engine/config.js';
-import type { Finding, HoldfastEvent } from '../engine/events.js';
+import type { Finding, RulekeepEvent } from '../engine/events.js';
 
 /** Keep a failing checker's output short enough to stay inside an agent's message limit. */
 const MAX_OUTPUT_LINES = 40;
@@ -26,9 +26,19 @@ const MAX_TIMEOUT_MS = 3600 * 1000;
  */
 const MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 
-/** Strips ANSI colour/cursor escapes, so a checker's pretty output stays readable inside a hook's JSON message. */
-// eslint-disable-next-line no-control-regex
-const ANSI_PATTERN = /\[[0-9;]*[A-Za-z]|\][^]*/g;
+/**
+ * Strips ANSI escapes so a checker's pretty output stays readable once it is
+ * embedded in a hook's JSON message: a colour/cursor code (ESC [ ... letter),
+ * or an operating system command (ESC ] ... BEL).
+ *
+ * Both control bytes are built with fromCharCode rather than typed literally.
+ * A raw ESC byte in a source file is invisible, and any tool that rewrites the
+ * file - a rename, a codemod, a careless sed - can eat it without a trace,
+ * leaving a regex that silently matches nothing.
+ */
+const ESC = String.fromCharCode(27);
+const BEL = String.fromCharCode(7);
+const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*[A-Za-z]|${ESC}\\][^${BEL}]*${BEL}`, 'g');
 
 export function stripAnsi(text: string): string {
   return text.replace(ANSI_PATTERN, '');
@@ -53,7 +63,7 @@ export interface CheckerOutcome {
 
 /**
  * Runs one checker command. Uses a shell because `run` is written as a shell
- * string in holdfast.yaml ("npm run typecheck"); that is only safe because
+ * string in rulekeep.yaml ("npm run typecheck"); that is only safe because
  * the config had to be trusted first (runtime/trust.ts).
  */
 export function runChecker(rule: CheckerRule, repoRoot: string): CheckerOutcome {
@@ -101,7 +111,7 @@ export function runChecker(rule: CheckerRule, repoRoot: string): CheckerOutcome 
 }
 
 /** True when this checker should run for the given event (its `on:` phase, and any `when:` globs). */
-export function checkerApplies(rule: CheckerRule, event: HoldfastEvent): boolean {
+export function checkerApplies(rule: CheckerRule, event: RulekeepEvent): boolean {
   if (rule.mode === 'off') return false;
 
   const phase = event.kind === 'stop' ? 'stop' : event.kind === 'after-edit' ? 'edit' : undefined;
@@ -118,7 +128,7 @@ export function checkerApplies(rule: CheckerRule, event: HoldfastEvent): boolean
  * passes these to `evaluate` as `extra`, so checker results flow through the
  * same verdict, override and formatting path as every other rule type.
  */
-export function runCheckers(rules: readonly CheckerRule[], event: HoldfastEvent, repoRoot: string): readonly Finding[] {
+export function runCheckers(rules: readonly CheckerRule[], event: RulekeepEvent, repoRoot: string): readonly Finding[] {
   const findings: Finding[] = [];
 
   for (const rule of rules) {

@@ -42,10 +42,10 @@ the way. No repo, no build, no tests. One script.
 
 ### Step 1: Add the proof script
 
-Create `d:\3d\.claude\holdfast-proof.mjs`:
+Create `d:\3d\.claude\rulekeep-proof.mjs`:
 
 ```js
-// One-week experiment for holdfast. Not the real tool: no diffs, no config file.
+// One-week experiment for rulekeep. Not the real tool: no diffs, no config file.
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -89,7 +89,7 @@ for await (const chunk of process.stdin) chunks.push(chunk);
 const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
 
 const projectDir = process.env.CLAUDE_PROJECT_DIR ?? input.cwd;
-const logFile = join(projectDir, '.claude', 'holdfast-proof.log.jsonl');
+const logFile = join(projectDir, '.claude', 'rulekeep-proof.log.jsonl');
 
 function log(ruleId, detail) {
   mkdirSync(dirname(logFile), { recursive: true });
@@ -117,7 +117,7 @@ if (input.hook_event_name === 'PreToolUse') {
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
           permissionDecision: 'deny',
-          permissionDecisionReason: `holdfast-proof: ${hit.id}\n${hit.message}`,
+          permissionDecisionReason: `rulekeep-proof: ${hit.id}\n${hit.message}`,
         },
       }),
     );
@@ -141,7 +141,7 @@ if (input.hook_event_name === 'PostToolUse') {
     console.log(
       JSON.stringify({
         decision: 'block',
-        reason: `holdfast-proof: this edit breaks ${hits.length} rule(s).\n\n${reason}\n\nFix the edit, then continue.`,
+        reason: `rulekeep-proof: this edit breaks ${hits.length} rule(s).\n\n${reason}\n\nFix the edit, then continue.`,
       }),
     );
   }
@@ -163,7 +163,7 @@ the team):
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/holdfast-proof.mjs"],
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/rulekeep-proof.mjs"],
             "timeout": 10
           }
         ]
@@ -176,7 +176,7 @@ the team):
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/holdfast-proof.mjs"],
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/rulekeep-proof.mjs"],
             "timeout": 10
           }
         ]
@@ -189,8 +189,8 @@ the team):
 Keep the experiment out of git: add these two lines to `d:\3d\.git\info\exclude`:
 
 ```
-.claude/holdfast-proof.mjs
-.claude/holdfast-proof.log.jsonl
+.claude/rulekeep-proof.mjs
+.claude/rulekeep-proof.log.jsonl
 ```
 
 ### Step 3: Check it works (5 minutes)
@@ -200,13 +200,13 @@ Start Claude Code in `d:\3d` and ask:
 > Create `app/src/utils/debug.ts` containing
 > `export const debug = (x: any) => console.log(x);`
 
-You should see Claude get the `holdfast-proof` message for `no-any` and
+You should see Claude get the `rulekeep-proof` message for `no-any` and
 `no-console-log`, and rewrite the code. Then undo the file.
 
 ### Step 4: Work normally for one week
 
 Use Claude Code on LIFEWORLD as usual. Every rule firing is logged to
-`.claude/holdfast-proof.log.jsonl`. At the end of each day, look at new entries
+`.claude/rulekeep-proof.log.jsonl`. At the end of each day, look at new entries
 and mark each one in a notes file:
 
 | Date | Rule | Real catch or false alarm? | Note |
@@ -234,7 +234,7 @@ that's what real diffs (M2) fix; decide if that's worth building.
 
 ### Steps
 
-1. Create a public GitHub repo, `holdfast` (or the final name, Q1).
+1. Create a public GitHub repo, `rulekeep` (or the final name, Q1).
 2. Set up the project:
 
    ```bash
@@ -268,7 +268,7 @@ that's what real diffs (M2) fix; decide if that's worth building.
    ```json
    {
      "scripts": {
-       "build": "esbuild src/cli/main.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/holdfast.cjs",
+       "build": "esbuild src/cli/main.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/rulekeep.cjs",
        "typecheck": "tsc",
        "lint": "eslint src test --max-warnings=0",
        "test": "vitest run",
@@ -300,7 +300,7 @@ testable.
 
 1. **`events.ts`** — the types from
    [The event model](./03-architecture.md#the-event-model).
-2. **`config.ts`** — parse `holdfast.yaml` and validate it.
+2. **`config.ts`** — parse `rulekeep.yaml` and validate it.
    - Use `yaml`'s `parseDocument` so errors carry line numbers.
    - Validate every field from [02-what-we-build.md](./02-what-we-build.md#the-rules-file)
      by hand (no schema library needed): unknown `type`, missing `message`,
@@ -337,12 +337,12 @@ testable.
    }
    ```
 
-4. **`overrides.ts`** — find `holdfast-ignore <rule-id>: <reason>` on the same
+4. **`overrides.ts`** — find `rulekeep-ignore <rule-id>: <reason>` on the same
    line or the line above. No reason → not an override.
 5. **Rules**, one file each, all with the same shape:
 
    ```ts
-   export type RuleCheck<R> = (rule: R, event: HoldfastEvent) => readonly Finding[];
+   export type RuleCheck<R> = (rule: R, event: RulekeepEvent) => readonly Finding[];
    ```
 
    Build in this order, because each is harder than the last:
@@ -372,20 +372,20 @@ testable.
 
    `rule.matchesPath` comes from the compiled config (globs from `files` and
    `exclude`). `withOverride` builds the finding and attaches an `override` when
-   `overrides.ts` finds a valid `holdfast-ignore` comment and the rule allows it.
+   `overrides.ts` finds a valid `rulekeep-ignore` comment and the rule allows it.
 
 6. **`evaluate.ts`** — run every rule that applies to the event
    ([Which rules run when](./03-architecture.md#which-rules-run-when)), collect
    findings, compute the outcome.
 7. **`format.ts`** — turn a verdict into the message from
    [02-what-we-build.md](./02-what-we-build.md#3-work-normally). Max 20 findings.
-8. **`holdfast test`** — for each rule, run its fixture files
+8. **`rulekeep test`** — for each rule, run its fixture files
    ([05-testing.md](./05-testing.md#layer-1-rule-engine-tests)).
 
 ### Done when
 
 - Every rule type has fixtures for "must fire", "must not fire" and "overridden".
-- The full LIFEWORLD example `holdfast.yaml` from chapter 2 parses with no errors.
+- The full LIFEWORLD example `rulekeep.yaml` from chapter 2 parses with no errors.
 - The engine has zero imports from `node:fs`, `node:child_process` or
   `src/runtime` (add an ESLint `no-restricted-imports` rule to enforce this).
 
@@ -396,7 +396,7 @@ testable.
 > **Status: built.** The adapter, the plugin folder, the marketplace file and
 > the build's plugin sync all exist. `claude plugin validate --strict` passes,
 > and `test/contracts/claudeCodeHooks.test.ts` drives all four hooks with real
-> payload shapes. `HOLDFAST_RECORD` (step 8) works — point it at a directory
+> payload shapes. `RULEKEEP_RECORD` (step 8) works — point it at a directory
 > during a live session to capture genuine payloads. Not yet done: running it
 > inside a live Claude Code session by hand and checking the captures.
 
@@ -407,11 +407,11 @@ testable.
 2. **Adapter:** `src/adapters/claude-code.ts`. Two functions:
 
    ```ts
-   /** Claude Code hook JSON → holdfast event (or null when the hook isn't relevant) */
-   export function fromClaude(input: ClaudeHookInput, runtime: Runtime): HoldfastEvent | null;
+   /** Claude Code hook JSON → rulekeep event (or null when the hook isn't relevant) */
+   export function fromClaude(input: ClaudeHookInput, runtime: Runtime): RulekeepEvent | null;
 
    /** Verdict → the JSON Claude Code expects for that event */
-   export function toClaude(event: HoldfastEvent, verdict: Verdict, message: string): object {
+   export function toClaude(event: RulekeepEvent, verdict: Verdict, message: string): object {
      switch (event.kind) {
        case 'before-command':
          if (verdict.outcome === 'block') {
@@ -441,9 +441,9 @@ testable.
 
    Output formats are explained in
    [What each hook returns](./03-architecture.md#what-each-hook-returns).
-3. **CLI entry:** `holdfast hook claude-code <event>` reads stdin, calls the
+3. **CLI entry:** `rulekeep hook claude-code <event>` reads stdin, calls the
    adapter, prints JSON, **always exits 0**. Wrap everything in `try/catch`; on
-   error print `{ "systemMessage": "holdfast error: …" }`.
+   error print `{ "systemMessage": "rulekeep error: …" }`.
 4. **Plugin folder** in the repo:
 
    ```
@@ -451,19 +451,19 @@ testable.
      .claude-plugin/plugin.json
      hooks/hooks.json            ← from 03-architecture.md
      skills/                     ← added in M4
-     dist/holdfast.cjs           ← copied by the build
+     dist/rulekeep.cjs           ← copied by the build
    ```
 
    `plugins/claude-code/.claude-plugin/plugin.json`:
 
    ```json
    {
-     "name": "holdfast",
+     "name": "rulekeep",
      "version": "0.1.0",
      "description": "Enforce your project's rules while the agent works: blocks rule-breaking commands and sends rule-breaking edits back to be fixed.",
      "author": { "name": "<your name>" },
-     "homepage": "https://github.com/<you>/holdfast",
-     "repository": "https://github.com/<you>/holdfast",
+     "homepage": "https://github.com/<you>/rulekeep",
+     "repository": "https://github.com/<you>/rulekeep",
      "license": "Apache-2.0",
      "keywords": ["rules", "hooks", "guardrails", "conventions", "tests"]
    }
@@ -475,11 +475,11 @@ testable.
 
    ```json
    {
-     "name": "holdfast",
+     "name": "rulekeep",
      "owner": { "name": "<your name>", "url": "https://github.com/<you>" },
      "plugins": [
        {
-         "name": "holdfast",
+         "name": "rulekeep",
          "source": "./plugins/claude-code",
          "description": "Enforce your project's rules while the agent works."
        }
@@ -487,7 +487,7 @@ testable.
    }
    ```
 
-6. **Update the build** to copy `dist/holdfast.cjs` into `plugins/claude-code/dist/`.
+6. **Update the build** to copy `dist/rulekeep.cjs` into `plugins/claude-code/dist/`.
 7. **Try it locally**, without installing:
 
    ```bash
@@ -496,7 +496,7 @@ testable.
 
    After changing code: `npm run build`, then `/reload-plugins` in the session.
 8. **Record real hook inputs** for contract tests: set
-   `HOLDFAST_RECORD=./test/contracts/claude-code` and have the CLI save every
+   `RULEKEEP_RECORD=./test/contracts/claude-code` and have the CLI save every
    stdin payload it receives ([05-testing.md](./05-testing.md#layer-2-hook-contract-tests)).
 
 ### Done when
@@ -515,7 +515,7 @@ In a scratch repo with the LIFEWORLD rules, inside real Claude Code:
 ## M4 — Checkers, trust, CI command, skills → v0.1
 
 > **Status: built, except the dogfooding.** `runtime/checker.ts`,
-> `runtime/trust.ts`, `holdfast check`, `holdfast trust` and the three skills
+> `runtime/trust.ts`, `rulekeep check`, `rulekeep trust` and the three skills
 > all exist and are tested. Steps 6 and 7 — tagging v0.1.0 and two weeks of
 > real use — are what remain, and step 7 gates the tag.
 
@@ -526,9 +526,9 @@ In a scratch repo with the LIFEWORLD rules, inside real Claude Code:
    exit code ≠ 0 means a finding.
 2. **`runtime/trust.ts`** — the approval flow from
    [Checker commands need approval](./03-architecture.md#checker-commands-need-approval).
-3. **`holdfast check`** — the CI mode from
+3. **`rulekeep check`** — the CI mode from
    [CI mode](./03-architecture.md#ci-mode), with `--format text|github|json`.
-4. **`holdfast doctor`** — prints: Node version, config valid or errors, which
+4. **`rulekeep doctor`** — prints: Node version, config valid or errors, which
    agent hooks are installed, whether checkers are trusted, slowest rule timings.
 5. **Skills** in `plugins/claude-code/skills/`:
 
@@ -536,24 +536,24 @@ In a scratch repo with the LIFEWORLD rules, inside real Claude Code:
 
    ```markdown
    ---
-   description: Create or update holdfast.yaml from this repo's CLAUDE.md, AGENTS.md and GEMINI.md rules. Use when the user wants holdfast set up or asks which of their rules can be enforced.
+   description: Create or update rulekeep.yaml from this repo's CLAUDE.md, AGENTS.md and GEMINI.md rules. Use when the user wants rulekeep set up or asks which of their rules can be enforced.
    disable-model-invocation: true
    ---
 
-   Set up holdfast rules for this repository.
+   Set up rulekeep rules for this repository.
 
    1. Read every CLAUDE.md, AGENTS.md and GEMINI.md in the repo.
    2. List each rule you find. For each, decide whether code can check it:
       - Checkable: a pattern in added lines, a banned import, a command to block,
         a test that must not be skipped, a command like a type check that must pass.
       - Not checkable: anything that needs judgement ("keep screens thin").
-   3. Propose holdfast.yaml using only the rule types in the holdfast docs.
+   3. Propose rulekeep.yaml using only the rule types in the rulekeep docs.
       Default every rule to `mode: warn` unless the source says "never" or
       "banned", then use `block`.
    4. Show the user the full proposed file AND the list of rules you left out,
       with one line each on why.
-   5. Only write holdfast.yaml after the user approves. Then run
-      `npx holdfast test` and report the result.
+   5. Only write rulekeep.yaml after the user approves. Then run
+      `npx rulekeep test` and report the result.
    ```
 
    `trust/SKILL.md` (approve checker commands) and `explain/SKILL.md` (explain a
@@ -567,7 +567,7 @@ In a scratch repo with the LIFEWORLD rules, inside real Claude Code:
 
 - All layers 1–4 of [05-testing.md](./05-testing.md) pass in CI.
 - Two weeks of dogfooding logged, false-alarm rate under 1 in 5.
-- `holdfast check` runs in LIFEWORLD's CI on a real pull request.
+- `rulekeep check` runs in LIFEWORLD's CI on a real pull request.
 
 ---
 
@@ -588,7 +588,7 @@ In a scratch repo with the LIFEWORLD rules, inside real Claude Code:
      replaces the tool result); enforce blocking rules at `Stop`, and count stop
      retries per `turn_id`, because Codex has no retry cap of its own.
 3. **Plugin folder** `plugins/codex/` with `.codex-plugin/plugin.json`,
-   `hooks/hooks.json`, the skills, and `dist/holdfast.cjs`. Add
+   `hooks/hooks.json`, the skills, and `dist/rulekeep.cjs`. Add
    `.agents/plugins/marketplace.json` at the repo root pointing to
    `./plugins/codex`, and check which marketplace file Codex reads when both it
    and `.claude-plugin/marketplace.json` exist.
@@ -602,7 +602,7 @@ In a scratch repo with the LIFEWORLD rules, inside real Claude Code:
 
 ### Done when
 
-- The same `holdfast.yaml` produces the same findings in Codex and Claude Code
+- The same `rulekeep.yaml` produces the same findings in Codex and Claude Code
   for the same edits (compare with a scripted task in both).
 - Contract tests for Codex pass in CI.
 
@@ -644,12 +644,12 @@ Follow the [launch checklist](./06-publishing.md#launch-checklist).
 
 ## M8 — v1.0
 
-Only after at least **3 outside repos** have used holdfast for a few weeks.
+Only after at least **3 outside repos** have used rulekeep for a few weeks.
 
 1. Review every issue about the rules format. Make any breaking changes now.
-2. Publish a JSON Schema for `holdfast.yaml` so editors can autocomplete it.
+2. Publish a JSON Schema for `rulekeep.yaml` so editors can autocomplete it.
 3. Write down the compatibility promise: no breaking changes to
-   `holdfast.yaml` version 1 without a new `version: 2`.
+   `rulekeep.yaml` version 1 without a new `version: 2`.
 4. Tag **v1.0.0**.
 
 ---

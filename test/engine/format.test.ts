@@ -18,11 +18,11 @@ describe('formatVerdict', () => {
       ],
     };
     const message = formatVerdict(verdict, 'edit');
-    expect(message).toContain('holdfast: this edit breaks 1 rule.');
+    expect(message).toContain('rulekeep: this edit breaks 1 rule.');
     expect(message).toContain('no-any (block)  app/src/features/world/queries.ts:42');
     expect(message).toContain('const data = response as any;');
     expect(message).toContain("Don't use `any`.");
-    expect(message).toContain('holdfast-ignore <rule-id>: <reason>');
+    expect(message).toContain('rulekeep-ignore <rule-id>: <reason>');
   });
 
   it('pluralizes "rules" for more than one finding', () => {

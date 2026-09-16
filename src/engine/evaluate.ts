@@ -9,7 +9,7 @@
  * plan). This function evaluates every other rule type.
  */
 import type { Rule } from './config.js';
-import { outcomeOf, type Finding, type HoldfastEvent, type Verdict } from './events.js';
+import { outcomeOf, type Finding, type RulekeepEvent, type Verdict } from './events.js';
 import { checkBoundaryRule } from './rules/boundary.js';
 import { checkCommandRule } from './rules/command.js';
 import { checkLineRule } from './rules/line.js';
@@ -19,7 +19,7 @@ import { checkTestGuardRule } from './rules/testGuard.js';
 /** Findings are capped so a hook's output never exceeds an agent's message limit (docs/03-architecture.md "Output size"). */
 const MAX_FINDINGS = 20;
 
-function checkRule(rule: Rule, event: HoldfastEvent): readonly Finding[] {
+function checkRule(rule: Rule, event: RulekeepEvent): readonly Finding[] {
   switch (rule.type) {
     case 'command':
       return checkCommandRule(rule, event);
@@ -37,7 +37,7 @@ function checkRule(rule: Rule, event: HoldfastEvent): readonly Finding[] {
   }
 }
 
-export function evaluate(rules: readonly Rule[], event: HoldfastEvent, extra: readonly Finding[] = []): Verdict {
+export function evaluate(rules: readonly Rule[], event: RulekeepEvent, extra: readonly Finding[] = []): Verdict {
   const findings = rules.flatMap((rule) => checkRule(rule, event)).concat(extra);
   return { outcome: outcomeOf(findings), findings: findings.slice(0, MAX_FINDINGS) };
 }

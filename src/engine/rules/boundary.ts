@@ -8,7 +8,7 @@
  */
 import { ruleAppliesTo, type BoundaryRule } from '../config.js';
 import { changedLines } from '../diff.js';
-import type { Finding, HoldfastEvent } from '../events.js';
+import type { Finding, RulekeepEvent } from '../events.js';
 import { findOverride } from '../overrides.js';
 
 // Matches `import ... from '<spec>'`, `import '<spec>'`, and `require('<spec>')`.
@@ -22,7 +22,7 @@ function isDisallowed(specifier: string, disallow: readonly string[]): boolean {
   return disallow.some((prefix) => specifier === prefix || specifier.startsWith(`${prefix}/`));
 }
 
-export function checkBoundaryRule(rule: BoundaryRule, event: HoldfastEvent): readonly Finding[] {
+export function checkBoundaryRule(rule: BoundaryRule, event: RulekeepEvent): readonly Finding[] {
   if ((event.kind !== 'after-edit' && event.kind !== 'stop') || rule.mode === 'off') return [];
 
   const findings: Finding[] = [];

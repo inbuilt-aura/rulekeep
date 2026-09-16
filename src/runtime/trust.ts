@@ -2,13 +2,13 @@
  * Approval for checker commands (docs/03-architecture.md "Checker commands
  * need approval").
  *
- * A `checker` rule runs a command written in the repo's holdfast.yaml. Anyone
+ * A `checker` rule runs a command written in the repo's rulekeep.yaml. Anyone
  * can put a harmful command in a repo and wait for someone to open it with an
- * agent. So holdfast never runs a checker until the user has approved that
+ * agent. So rulekeep never runs a checker until the user has approved that
  * exact set of commands, and approval is tied to a hash of the commands
  * themselves: change what they run, and it has to be approved again.
  *
- * Approvals live in ~/.holdfast/trusted.json, keyed by config path, so
+ * Approvals live in ~/.rulekeep/trusted.json, keyed by config path, so
  * trusting one repo says nothing about any other.
  */
 import { createHash } from 'node:crypto';
@@ -17,11 +17,11 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import type { CheckerRule, Config } from '../engine/config.js';
 
-const TRUST_DIR_NAME = '.holdfast';
+const TRUST_DIR_NAME = '.rulekeep';
 const TRUST_FILE_NAME = 'trusted.json';
 
 export function trustFilePath(): string {
-  return join(process.env.HOLDFAST_HOME ?? join(homedir(), TRUST_DIR_NAME), TRUST_FILE_NAME);
+  return join(process.env.RULEKEEP_HOME ?? join(homedir(), TRUST_DIR_NAME), TRUST_FILE_NAME);
 }
 
 export function checkerRulesOf(config: Config): readonly CheckerRule[] {
@@ -69,7 +69,7 @@ function readTrustFile(): TrustFile {
 /**
  * Key on the config's own absolute path, so approving one repo never approves
  * another. `resolve` matters: a relative path would collapse every repo onto
- * the one shared key "holdfast.yaml", making a single approval cover them all.
+ * the one shared key "rulekeep.yaml", making a single approval cover them all.
  */
 function keyFor(configPath: string): string {
   return resolve(configPath).replace(/\\/g, '/');
@@ -121,8 +121,8 @@ export function untrustedNotice(configPath: string, rules: readonly CheckerRule[
   const lines = rules.map((rule) => `  ${rule.run.padEnd(width)}  (${rule.id})`);
 
   return [
-    `holdfast: this repo's holdfast.yaml wants to run ${rules.length} ${noun}:`,
+    `rulekeep: this repo's rulekeep.yaml wants to run ${rules.length} ${noun}:`,
     ...lines,
-    'Run /holdfast:trust to allow them. Other rules are active.',
+    'Run /rulekeep:trust to allow them. Other rules are active.',
   ].join('\n');
 }
