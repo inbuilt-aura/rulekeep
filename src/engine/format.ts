@@ -8,6 +8,15 @@ import type { Finding, Verdict } from './events.js';
 
 const TOOL_NAME = 'holdfast';
 
+/** What the findings are about, which decides how the message is worded. */
+export type Subject = 'command' | 'edit' | 'work';
+
+const SUBJECTS: Record<Subject, { readonly headline: string; readonly fix: string }> = {
+  command: { headline: 'this command breaks', fix: 'Fix the command, then continue.' },
+  edit: { headline: 'this edit breaks', fix: 'Fix the edit, then continue.' },
+  work: { headline: 'this turn leaves', fix: 'Fix them before finishing.' },
+};
+
 function locationOf(finding: Finding): string {
   if (finding.path === undefined) return '';
   return finding.line === undefined ? `  ${finding.path}` : `  ${finding.path}:${finding.line}`;
@@ -21,21 +30,25 @@ function lineFor(finding: Finding): string {
   return parts.join('\n');
 }
 
-/** The message shown after a command or an edit: only what's actively blocking or warning right now. */
-export function formatVerdict(verdict: Verdict, subject: 'command' | 'edit'): string {
+/**
+ * The message shown after a command, an edit, or at stop: only what's
+ * actively blocking or warning right now.
+ *
+ * `subject` decides the wording. At stop the findings cover everything the
+ * agent did this turn, not one edit, so saying "this edit" there would point
+ * the agent at the wrong thing.
+ */
+export function formatVerdict(verdict: Verdict, subject: Subject): string {
   const active = verdict.findings.filter((finding) => finding.override === undefined);
   if (active.length === 0) return '';
 
   const noun = active.length === 1 ? '1 rule' : `${active.length} rules`;
-  const header =
-    subject === 'command'
-      ? `${TOOL_NAME}: this command breaks ${noun}.`
-      : `${TOOL_NAME}: this edit breaks ${noun}.`;
+  const header = `${TOOL_NAME}: ${SUBJECTS[subject].headline} ${noun}${subject === 'work' ? ' broken' : ''}.`;
 
   const body = active.map(lineFor).join('\n\n');
   const footer =
     verdict.outcome === 'block'
-      ? `Fix the ${subject === 'command' ? 'command' : 'edit'}, then continue. If this is a genuine exception, add ` +
+      ? `${SUBJECTS[subject].fix} If this is a genuine exception, add ` +
         `\`// holdfast-ignore <rule-id>: <reason>\` on that line.`
       : '';
 

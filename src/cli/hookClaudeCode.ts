@@ -15,11 +15,13 @@ import {
 } from '../adapters/claude-code.js';
 import { toRepoRelative } from '../adapters/paths.js';
 import { evaluate } from '../engine/evaluate.js';
-import type { FileChange } from '../engine/events.js';
+import type { Finding, FileChange, HoldfastEvent } from '../engine/events.js';
 import { formatStopSummary, formatVerdict } from '../engine/format.js';
-import { loadConfig } from '../runtime/configFile.js';
+import { runCheckers } from '../runtime/checker.js';
+import { loadConfig, type LoadedConfig } from '../runtime/configFile.js';
 import { saveSnapshot, takeSnapshot } from '../runtime/snapshot.js';
 import { cleanupStaleSessions, readChanges, readStopRetries, recordChange, writeStopRetries } from '../runtime/state.js';
+import { checkerRulesOf, isTrusted, untrustedNotice } from '../runtime/trust.js';
 
 const AGENT = 'claude-code' as const;
 
@@ -44,10 +46,33 @@ function ruleReminder(repoRoot: string): string | undefined {
   return `holdfast rules for this repo:\n${lines.join('\n')}`;
 }
 
+/**
+ * Checker findings for an event, but only for a config whose commands the
+ * user has approved (docs/03-architecture.md "Checker commands need
+ * approval"). An untrusted config silently contributes no checker findings;
+ * the user is told once, at session start, not on every edit.
+ */
+function checkerFindings(loaded: LoadedConfig, event: HoldfastEvent): readonly Finding[] {
+  const checkers = checkerRulesOf(loaded.config);
+  if (checkers.length === 0 || !isTrusted(loaded.path, checkers)) return [];
+  return runCheckers(checkers, event, event.repoRoot);
+}
+
 export function handleSessionStart(input: ClaudeHookInput): object {
   cleanupStaleSessions();
-  if (input.source !== 'compact') return {};
-  return toClaudeSessionStartOutput(ruleReminder(repoRootOf(input)));
+  const repoRoot = repoRootOf(input);
+
+  // The checker approval prompt is shown once per session, at the start —
+  // never on every edit (docs/03-architecture.md "Checker commands need approval").
+  const loaded = loadConfig(repoRoot);
+  const notice = loaded.ok ? untrustedNotice(loaded.path, checkerRulesOf(loaded.config)) : undefined;
+
+  // After a compaction the rules are re-stated, because the original
+  // statement of them may have been compacted away.
+  const reminder = input.source === 'compact' ? ruleReminder(repoRoot) : undefined;
+
+  const parts = [notice, reminder].filter((part): part is string => part !== undefined);
+  return toClaudeSessionStartOutput(parts.length > 0 ? parts.join('\n\n') : undefined);
 }
 
 export function handlePreToolUse(input: ClaudeHookInput): object {
@@ -102,13 +127,14 @@ export function handlePostToolUse(input: ClaudeHookInput): object {
   const loaded = loadConfig(repoRoot);
   if (!loaded.ok) return {};
 
-  const verdict = evaluate(loaded.config.rules, {
+  const event: HoldfastEvent = {
     kind: 'after-edit',
     agent: AGENT,
     sessionId: input.session_id,
     repoRoot,
     changes: [change],
-  });
+  };
+  const verdict = evaluate(loaded.config.rules, event, checkerFindings(loaded, event));
   return toClaudeAfterEditOutput(verdict, formatVerdict(verdict, 'edit'));
 }
 
@@ -120,7 +146,7 @@ export function handleStop(input: ClaudeHookInput): object {
   const changes = readChanges(AGENT, input.session_id);
   const retry = input.stop_hook_active ? readStopRetries(AGENT, input.session_id) : 0;
 
-  const verdict = evaluate(loaded.config.rules, {
+  const event: HoldfastEvent = {
     kind: 'stop',
     agent: AGENT,
     sessionId: input.session_id,
@@ -128,14 +154,17 @@ export function handleStop(input: ClaudeHookInput): object {
     changes,
     finalMessage: input.last_assistant_message ?? null,
     retry,
-  });
+  };
+  const verdict = evaluate(loaded.config.rules, event, checkerFindings(loaded, event));
 
   const isBlocking = verdict.outcome === 'block';
   const withinBudget = retry < loaded.config.maxStopRetries;
 
   if (isBlocking && withinBudget) {
     writeStopRetries(AGENT, input.session_id, retry + 1);
-    return toClaudeStopOutput(verdict, formatVerdict(verdict, 'edit'), undefined);
+    // 'work', not 'edit': at stop the findings cover the whole turn, which
+    // may include files the agent edited several steps ago.
+    return toClaudeStopOutput(verdict, formatVerdict(verdict, 'work'), undefined);
   }
 
   writeStopRetries(AGENT, input.session_id, 0);

@@ -1,0 +1,55 @@
+{
+  "description": "holdfast: enforce holdfast.yaml rules",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "session-start"],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|^Edit$|^Write$|^NotebookEdit$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "pre-tool-use"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^Edit$|^Write$|^NotebookEdit$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "post-tool-use"],
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/holdfast.cjs", "hook", "claude-code", "stop"],
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

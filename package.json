@@ -16,7 +16,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "esbuild src/cli/main.ts --bundle --platform=node --target=node22 --format=cjs --banner:js=\"#!/usr/bin/env node\" --outfile=dist/holdfast.cjs",
+    "build": "esbuild src/cli/main.ts --bundle --platform=node --target=node22 --format=cjs --banner:js=\"#!/usr/bin/env node\" --outfile=dist/holdfast.cjs && node scripts/sync-plugin.mjs",
     "typecheck": "tsc",
     "lint": "eslint src test --max-warnings=0",
     "test": "vitest run",

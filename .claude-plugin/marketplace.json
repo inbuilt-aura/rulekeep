@@ -1,0 +1,11 @@
+{
+  "name": "holdfast",
+  "owner": { "name": "Aman Maddeshiya", "url": "https://github.com/amanmaddeshiya" },
+  "plugins": [
+    {
+      "name": "holdfast",
+      "source": "./plugins/claude-code",
+      "description": "Enforce your project's rules while the agent works."
+    }
+  ]
+}

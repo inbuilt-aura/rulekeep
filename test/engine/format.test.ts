@@ -74,3 +74,42 @@ describe('formatStopSummary', () => {
     expect(formatStopSummary({ outcome: 'allow', findings: [] })).toBe('');
   });
 });
+
+describe('formatVerdict — subject wording', () => {
+  const blocking: Verdict = {
+    outcome: 'block',
+    findings: [{ ruleId: 'no-any', mode: 'block', message: 'No any.', path: 'src/a.ts', line: 2 }],
+  };
+
+  it('points at the command for a before-command verdict', () => {
+    const text = formatVerdict(blocking, 'command');
+    expect(text).toContain('this command breaks 1 rule');
+    expect(text).toContain('Fix the command');
+  });
+
+  it('points at the edit for an after-edit verdict', () => {
+    const text = formatVerdict(blocking, 'edit');
+    expect(text).toContain('this edit breaks 1 rule');
+    expect(text).toContain('Fix the edit');
+  });
+
+  it('points at the whole turn at stop, never at "this edit"', () => {
+    // At stop the findings can span files edited many steps earlier, so
+    // calling them "this edit" would send the agent looking in the wrong place.
+    const text = formatVerdict(blocking, 'work');
+    expect(text).toContain('this turn leaves 1 rule broken');
+    expect(text).not.toContain('this edit');
+    expect(text).toContain('Fix them before finishing.');
+  });
+
+  it('pluralises the stop wording', () => {
+    const two: Verdict = {
+      outcome: 'block',
+      findings: [
+        { ruleId: 'no-any', mode: 'block', message: 'No any.' },
+        { ruleId: 'no-todo', mode: 'block', message: 'No TODO.' },
+      ],
+    };
+    expect(formatVerdict(two, 'work')).toContain('this turn leaves 2 rules broken');
+  });
+});

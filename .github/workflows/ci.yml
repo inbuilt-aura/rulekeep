@@ -21,3 +21,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+
+      # The plugin is what users actually install, so its manifest is
+      # validated by Claude Code's own validator, not just by our tests.
+      - name: Validate the Claude Code plugin
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        run: npx --yes @anthropic-ai/claude-code plugin validate ./plugins/claude-code --strict
+
+      # The committed bundle must match the current source, or an installed
+      # plugin silently runs old code.
+      - name: Check the committed plugin bundle is up to date
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        run: git diff --exit-code -- plugins/claude-code/dist/

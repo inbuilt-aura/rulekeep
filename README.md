@@ -36,24 +36,30 @@ holdfast: this edit breaks 1 rule.
 agent: rewrites it as `const data: unknown = response;` — and continues
 ```
 
-## Status: early build, not yet installable
+## Status: installable in Claude Code; not yet dogfooded
 
-The rule engine, the CLI (`hook`, `check`, `doctor`) and the full Claude Code
-hook wiring work end-to-end today — see [Try it](#try-it-right-now) below. It
-is **not yet packaged as something you can install** in Claude Code, Codex or
-Gemini CLI; that's the very next step
-([`docs/04-build-plan.md`](./docs/04-build-plan.md) M3 onward).
+Everything holdfast does in Claude Code is built and tested: all six rule
+types, the full hook wiring, the CI command, and the plugin package you can
+install ([Try it](#try-it-right-now) below). `claude plugin validate --strict`
+passes and 190 tests cover it.
+
+What it has **not** had is real use. The remaining work before calling it v0.1
+is dogfooding it on a real project for a couple of weeks and tuning the false
+alarms out ([`docs/04-build-plan.md`](./docs/04-build-plan.md) M4 step 7).
 
 | Piece | State |
 | --- | --- |
-| Rule engine (`command`, `line`, `boundary`, `test-guard`, `prose`) | ✅ Built, 68 tests |
+| Rule engine (`command`, `line`, `boundary`, `test-guard`, `prose`) | ✅ Built |
+| `checker` rule type (running a real command like `tsc`) | ✅ Built |
 | `holdfast.yaml` parser, with line-numbered errors | ✅ Built |
 | Overrides (`holdfast-ignore <rule>: <reason>`) | ✅ Built |
-| Claude Code hook wiring (`hook claude-code <event>`) | ✅ Built, smoke-tested against real hook payloads |
+| Claude Code hook wiring (`hook claude-code <event>`) | ✅ Built, contract-tested against real hook payloads |
+| Installable Claude Code plugin (`plugins/claude-code/`) | ✅ Built, `claude plugin validate --strict` passes |
+| Skills (`/holdfast:setup`, `:trust`, `:explain`) | ✅ Built |
+| Checker trust flow (`holdfast trust`) | ✅ Built |
 | `holdfast check` — the CI backstop | ✅ Built, drives real `git diff`/`git status` |
 | `holdfast doctor` | ✅ Built |
-| `checker` rule type (running a real command like `tsc`) | ⬜ Not built — needs `src/runtime/checker.ts` + a trust flow |
-| Packaged as an installable Claude Code plugin | ⬜ Not built — needs `.claude-plugin/`, `hooks/hooks.json`, skills |
+| Dogfooded on a real project | ⬜ Not yet — the next step before v0.1 |
 | Codex adapter | ⬜ Not built |
 | Gemini CLI adapter | ⬜ Not built |
 
@@ -87,8 +93,8 @@ echo '{"session_id":"s1","cwd":".","hook_event_name":"PreToolUse","tool_name":"B
 ```bash
 npm run typecheck   # tsc
 npm run lint        # eslint
-npm run test         # vitest
-npm run verify       # all of the above, plus the build
+npm run test        # vitest
+npm run verify      # all of the above, plus the build
 ```
 
 The rule engine (`src/engine/`) is pure — no filesystem, no processes, no

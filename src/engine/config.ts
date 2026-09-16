@@ -75,6 +75,9 @@ export type ConfigResult = { readonly ok: true; readonly config: Config } | { re
 
 const DEFAULT_MODE: RuleMode = 'warn';
 const DEFAULT_MAX_STOP_RETRIES = 3;
+const DEFAULT_TIMEOUT_SECONDS = 60;
+/** One hour. Anything longer is a mistake, and Node rejects a timeout it cannot hold in an unsigned int. */
+const MAX_TIMEOUT_SECONDS = 3600;
 const MODES: readonly RuleMode[] = ['off', 'warn', 'block'];
 
 /** Reads a YAML node's starting line (1-based) for error messages, or 1 if unknown. */
@@ -229,7 +232,16 @@ export function parseConfig(source: string): ConfigResult {
         }
         const cwd = typeof rule.cwd === 'string' ? rule.cwd : '.';
         const on = rule.on === 'edit' ? 'edit' : 'stop';
-        const timeoutSeconds = typeof rule.timeoutSeconds === 'number' && rule.timeoutSeconds > 0 ? rule.timeoutSeconds : 60;
+        // Must be finite and bounded: YAML parses `.inf` and `1e400` to
+        // Infinity, which is a number and is > 0, and Node's spawnSync throws
+        // synchronously on a non-finite timeout — taking every other rule in
+        // the file down with it.
+        const rawTimeout = rule.timeoutSeconds;
+        if (rawTimeout !== undefined && (typeof rawTimeout !== 'number' || !Number.isFinite(rawTimeout) || rawTimeout <= 0 || rawTimeout > MAX_TIMEOUT_SECONDS)) {
+          errors.push({ line, message: `Rule "${id}": "timeoutSeconds" must be a number between 1 and ${MAX_TIMEOUT_SECONDS}.` });
+          return;
+        }
+        const timeoutSeconds = typeof rawTimeout === 'number' ? rawTimeout : DEFAULT_TIMEOUT_SECONDS;
         const when = Array.isArray(rule.when) && rule.when.length > 0 ? picomatch(rule.when as string[]) : undefined;
         rules.push({ ...common, type: 'checker', run, cwd, on, timeoutSeconds, when });
         break;

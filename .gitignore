@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# The plugin ships its own bundled copy — it must be committed, or an
+# installed plugin has no executable to run (docs/04-build-plan.md M3).
+!plugins/claude-code/dist/
 *.log
 .DS_Store
 

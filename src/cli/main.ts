@@ -1,17 +1,19 @@
 /**
- * `holdfast hook | check | doctor` (docs/02-what-we-build.md "Commands").
+ * `holdfast hook | check | trust | doctor` (docs/02-what-we-build.md "Commands").
  * The shebang line lives in the esbuild `--banner:js` flag (package.json
  * "build" script), not here — one in the source plus one from the banner
  * would double up in the bundle, and Node only strips the first.
- * This build implements the Claude Code hook path end to end, plus `check`
- * and `doctor`. Codex and Gemini CLI adapters, `test`, `explain` and `trust`
- * are the next milestones (docs/04-build-plan.md M4-M6).
+ * This build implements the Claude Code hook path end to end, plus `check`,
+ * `doctor` and `trust`. The Codex and Gemini CLI adapters are the next
+ * milestones (docs/04-build-plan.md M5-M6).
  */
 import { runCheck } from './check.js';
 import { runDoctor } from './doctor.js';
 import { handlePostToolUse, handlePreToolUse, handleSessionStart, handleStop } from './hookClaudeCode.js';
 import { readStdinJson } from './stdin.js';
+import { runTrust, type TrustAction } from './trust.js';
 import type { ClaudeHookInput } from '../adapters/claude-code.js';
+import { recordPayload } from '../runtime/record.js';
 
 /**
  * The one rule that matters most: a bug in holdfast must never block real
@@ -28,6 +30,7 @@ async function runHook(agent: string, event: string): Promise<void> {
 
   try {
     const input = (await readStdinJson()) as ClaudeHookInput;
+    recordPayload(agent, event, input);
     const output =
       event === 'session-start'
         ? handleSessionStart(input)
@@ -60,7 +63,19 @@ function runCheckCommand(args: readonly string[]): void {
     process.exit(2);
   }
 
-  const result = runCheck({ base, format, repoRoot: process.cwd() });
+  const result = runCheck({
+    base,
+    format,
+    repoRoot: process.cwd(),
+    runCheckers: !args.includes('--no-checkers'),
+  });
+  console.log(result.output);
+  process.exit(result.exitCode);
+}
+
+function runTrustCommand(args: readonly string[]): void {
+  const action: TrustAction = args.includes('--revoke') ? 'revoke' : args.includes('--list') ? 'list' : 'approve';
+  const result = runTrust(process.cwd(), action);
   console.log(result.output);
   process.exit(result.exitCode);
 }
@@ -77,6 +92,9 @@ async function main(): Promise<void> {
     case 'check':
       runCheckCommand(rest);
       return;
+    case 'trust':
+      runTrustCommand(rest);
+      return;
     case 'doctor':
       console.log(runDoctor(process.cwd()));
       return;
@@ -88,7 +106,8 @@ async function main(): Promise<void> {
           'Usage:',
           '  holdfast hook <agent> <event>     (called by an agent\'s own hook config)',
           '  holdfast check --base <ref>       (run every rule against changes since <ref>)',
-          '  holdfast doctor                    (check Node version and holdfast.yaml)',
+          '  holdfast trust [--list|--revoke]  (approve this repo\'s checker commands)',
+          '  holdfast doctor                   (check Node version and holdfast.yaml)',
         ].join('\n'),
       );
       process.exit(command === undefined ? 0 : 1);

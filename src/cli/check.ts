@@ -5,18 +5,25 @@
  * before merge. Command and prose rules are skipped: there's no agent
  * command stream or final message in CI.
  *
- * `checker` rules are not run in this pass — they need runtime/checker.ts
- * (docs/04-build-plan.md M4), which this build doesn't include yet.
+ * `checker` rules DO run here, and without the interactive trust prompt: CI
+ * is already running the repo's own build scripts, so a checker command from
+ * the same checkout grants no access the job didn't already have. The trust
+ * flow exists to protect a developer's machine, which is not this.
  */
 import { evaluate } from '../engine/evaluate.js';
+import type { Finding, HoldfastEvent } from '../engine/events.js';
 import { formatVerdict } from '../engine/format.js';
+import { runCheckers } from '../runtime/checker.js';
 import { loadConfig } from '../runtime/configFile.js';
 import { changesSinceRef } from '../runtime/git.js';
+import { checkerRulesOf } from '../runtime/trust.js';
 
 export interface CheckOptions {
   readonly base: string;
   readonly format: 'text' | 'github' | 'json';
   readonly repoRoot: string;
+  /** Defaults to true. `--no-checkers` turns them off for a fast, pure-pattern run. */
+  readonly runCheckers?: boolean | undefined;
 }
 
 export interface CheckResult {
@@ -40,7 +47,7 @@ export function runCheck(options: CheckOptions): CheckResult {
   }
 
   const changes = changesSinceRef(options.repoRoot, options.base);
-  const verdict = evaluate(loaded.config.rules, {
+  const event: HoldfastEvent = {
     kind: 'stop', // reuses the stop-time rule set: line, boundary, test-guard (docs/03-architecture.md "Which rules run when")
     agent: 'ci',
     sessionId: 'ci',
@@ -48,7 +55,21 @@ export function runCheck(options: CheckOptions): CheckResult {
     changes,
     finalMessage: null,
     retry: 0,
-  });
+  };
+  // A crashing checker must not take the whole command down: CI should report
+  // what it could check, not die with a stack trace (docs/03-architecture.md
+  // "Fail open").
+  let checkerResults: readonly Finding[] = [];
+  if (options.runCheckers !== false) {
+    try {
+      checkerResults = runCheckers(checkerRulesOf(loaded.config), event, options.repoRoot);
+    } catch (cause) {
+      checkerResults = [
+        { ruleId: 'holdfast', mode: 'warn', message: `checker rules could not run: ${(cause as Error).message}` },
+      ];
+    }
+  }
+  const verdict = evaluate(loaded.config.rules, event, checkerResults);
 
   const active = verdict.findings.filter((f) => f.override === undefined);
   const overridden = verdict.findings.filter((f) => f.override !== undefined);
@@ -68,7 +89,7 @@ export function runCheck(options: CheckOptions): CheckResult {
     return { exitCode: 0, output: `holdfast: no rules broken across ${changes.length} changed file(s).` };
   }
 
-  const parts = [formatVerdict(verdict, 'edit') || 'holdfast: no active findings.'];
+  const parts = [formatVerdict(verdict, 'work') || 'holdfast: no active findings.'];
   if (overridden.length > 0) {
     parts.push(
       '',

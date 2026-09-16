@@ -242,3 +242,47 @@ rules:
     expect(result.config.rules).toHaveLength(8);
   });
 });
+
+describe('checker timeoutSeconds validation', () => {
+  const withTimeout = (value: string): string =>
+    `version: 1\nrules:\n  - id: c\n    type: checker\n    run: npm test\n    timeoutSeconds: ${value}\n`;
+
+  it('rejects an infinite timeout', () => {
+    // YAML parses `.inf` to Infinity, which is a number and is > 0. Node's
+    // spawnSync THROWS on a non-finite timeout instead of returning an error,
+    // so letting this through would disable every rule in the file.
+    const result = parseConfig(withTimeout('.inf'));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors[0]?.message).toContain('timeoutSeconds');
+  });
+
+  it('rejects an overflowing exponent, which YAML also reads as Infinity', () => {
+    expect(parseConfig(withTimeout('1e400')).ok).toBe(false);
+  });
+
+  it('rejects a timeout too large for Node to accept', () => {
+    expect(parseConfig(withTimeout('1e20')).ok).toBe(false);
+  });
+
+  it('rejects zero and negative timeouts', () => {
+    expect(parseConfig(withTimeout('0')).ok).toBe(false);
+    expect(parseConfig(withTimeout('-5')).ok).toBe(false);
+  });
+
+  it('accepts a sensible timeout, and defaults when none is given', () => {
+    const explicit = parseConfig(withTimeout('120'));
+    expect(explicit.ok).toBe(true);
+    if (explicit.ok) {
+      const rule = explicit.config.rules[0];
+      expect(rule?.type === 'checker' && rule.timeoutSeconds).toBe(120);
+    }
+
+    const defaulted = parseConfig('version: 1\nrules:\n  - id: c\n    type: checker\n    run: npm test\n');
+    expect(defaulted.ok).toBe(true);
+    if (defaulted.ok) {
+      const rule = defaulted.config.rules[0];
+      expect(rule?.type === 'checker' && rule.timeoutSeconds).toBe(60);
+    }
+  });
+});

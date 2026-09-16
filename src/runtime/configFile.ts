@@ -8,8 +8,11 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parseConfig, type Config, type ConfigError } from '../engine/config.js';
 
+/** The success branch of LoadResult, for code that has already checked `ok`. */
+export type LoadedConfig = { readonly ok: true; readonly config: Config; readonly path: string };
+
 export type LoadResult =
-  | { readonly ok: true; readonly config: Config; readonly path: string }
+  | LoadedConfig
   | { readonly ok: false; readonly errors: readonly ConfigError[]; readonly path?: string }
   /** No holdfast.yaml anywhere above `startDir` — not an error, just "nothing to enforce yet". */
   | { readonly ok: false; readonly errors: []; readonly path: undefined };

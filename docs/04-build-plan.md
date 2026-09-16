@@ -393,6 +393,13 @@ testable.
 
 ## M3 — Claude Code adapter and plugin
 
+> **Status: built.** The adapter, the plugin folder, the marketplace file and
+> the build's plugin sync all exist. `claude plugin validate --strict` passes,
+> and `test/contracts/claudeCodeHooks.test.ts` drives all four hooks with real
+> payload shapes. `HOLDFAST_RECORD` (step 8) works — point it at a directory
+> during a live session to capture genuine payloads. Not yet done: running it
+> inside a live Claude Code session by hand and checking the captures.
+
 ### Steps
 
 1. **Runtime:** `state.ts`, `snapshot.ts`, `baseline.ts`, `changes.ts` as
@@ -506,6 +513,11 @@ In a scratch repo with the LIFEWORLD rules, inside real Claude Code:
 ---
 
 ## M4 — Checkers, trust, CI command, skills → v0.1
+
+> **Status: built, except the dogfooding.** `runtime/checker.ts`,
+> `runtime/trust.ts`, `holdfast check`, `holdfast trust` and the three skills
+> all exist and are tested. Steps 6 and 7 — tagging v0.1.0 and two weeks of
+> real use — are what remain, and step 7 gates the tag.
 
 ### Steps
 
