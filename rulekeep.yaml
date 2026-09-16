@@ -1,0 +1,125 @@
+# rulekeep's own rules, enforced on rulekeep.
+#
+# Every rule here is a convention this repo already follows, written down in
+# docs/03-architecture.md or enforced by eslint.config.js. Using the tool on
+# itself is the cheapest dogfooding there is (docs/09-dogfooding.md).
+#
+# Everything starts at `warn` except the two that are genuinely absolute. A
+# blocking rule that turns out to be miscalibrated is worse than a warning.
+
+version: 1
+
+defaults:
+  mode: warn
+  allowOverride: true
+  maxStopRetries: 3
+
+rules:
+  # --- Commands -----------------------------------------------------------
+
+  - id: no-force-push
+    type: command
+    match: 'git\s+push\b.*\s(--force|-f)\b'
+    mode: block
+    allowOverride: false
+    message: Never force-push. Ask first.
+
+  - id: no-skipped-hooks
+    type: command
+    match: '--no-verify|--no-gpg-sign'
+    mode: block
+    message: Don't bypass hooks or signing. If a hook fails, fix the cause.
+
+  - id: no-sed-inplace
+    type: command
+    match: '\bsed\s+-i\b'
+    message: >-
+      Prefer the edit tool over `sed -i`. In-place stream edits have already
+      eaten control characters in this repo twice (see the ANSI pattern in
+      src/runtime/checker.ts).
+
+  # --- The engine must stay pure -----------------------------------------
+  # docs/03-architecture.md "Why the engine is pure". eslint enforces this at
+  # lint time; this catches it the moment the edit lands, with the reason.
+
+  - id: engine-stays-pure
+    type: boundary
+    from: 'src/engine/**/*.ts'
+    disallow:
+      - 'node:fs'
+      - 'node:child_process'
+      - 'node:os'
+      - 'fs'
+      - 'child_process'
+      - 'os'
+    mode: block
+    message: >-
+      The engine is pure — no filesystem, no processes, no clock. Anything that
+      touches the outside world belongs in src/runtime. (docs/03-architecture.md)
+
+  # --- TypeScript conventions --------------------------------------------
+
+  # Scoped to src/ only. Tests legitimately contain `as any` inside fixture
+  # STRINGS — it is the thing under test — and a line rule reads text, not
+  # syntax, so it cannot tell a real cast from a quoted one. Including test/
+  # here produced 20 false alarms on this repo's own history and nothing true.
+  - id: no-any
+    type: line
+    files: ['src/**/*.ts']
+    added: '(:\s*any\b|\bas\s+any\b|<any>)'
+    message: Use `unknown` and narrow it, not `any`.
+
+  - id: no-console-in-src
+    type: line
+    files: ['src/**/*.ts']
+    exclude: ['src/cli/**']
+    added: '\bconsole\.(log|debug|info)\('
+    message: >-
+      Only the CLI layer writes to stdout. A stray console.log inside a hook
+      corrupts the JSON the agent reads.
+
+  - id: no-literal-escape-bytes
+    type: line
+    files: ['src/**/*.ts', 'test/**/*.ts']
+    added: '\x1b|\x07'
+    message: >-
+      Build control characters with String.fromCharCode, never type them
+      literally. A raw ESC byte is invisible and any tool that rewrites the file
+      can silently eat it. (This has happened here.)
+
+  # --- Tests --------------------------------------------------------------
+
+  - id: keep-tests-honest
+    type: test-guard
+    files: ['test/**/*.ts']
+    checks: ['skip-or-focus', 'file-deleted', 'assertions-removed']
+    mode: block
+    allowOverride: false
+    message: >-
+      Don't skip, delete, or hollow out a test to make the suite pass. If a test
+      is wrong, fix the test and say why.
+
+  # --- Claims -------------------------------------------------------------
+
+  - id: no-unverified-claims
+    type: prose
+    match: '\b(all tests pass|everything works|fully tested|should work)\b'
+    message: >-
+      Don't claim tests pass unless you ran them this turn, and don't say
+      "should work" — run it and say what happened.
+
+  # --- Checkers: real commands that must pass (need /rulekeep:trust) ------
+
+  - id: typecheck
+    type: checker
+    run: 'npm run typecheck'
+    on: stop
+    timeoutSeconds: 120
+    message: TypeScript must compile before you finish.
+
+  - id: tests
+    type: checker
+    run: 'npm run test'
+    on: stop
+    timeoutSeconds: 300
+    message: The test suite must pass before you finish.
