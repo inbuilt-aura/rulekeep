@@ -229,3 +229,47 @@ describe('rulekeep check — fail open', () => {
     expect(result?.output).toContain('timeoutSeconds');
   });
 });
+
+describe('rulekeep check — real-world working trees', () => {
+  // These are the shapes a real repo has and a clean fixture does not. The
+  // untracked-directory case crashed `check` outright with an unhandled
+  // EISDIR: `git status` reports "node_modules/" as ONE entry, not its
+  // contents, and readFileSync on a directory throws. Every existing test
+  // used a tree with no untracked folders, so nothing caught it.
+  it('survives an untracked directory in the working tree', () => {
+    mkdirSync(join(repo, 'node_modules', 'left-pad'), { recursive: true });
+    writeFileSync(join(repo, 'node_modules', 'left-pad', 'index.js'), 'module.exports = 1;\n', 'utf8');
+
+    let result: ReturnType<typeof runCheck> | undefined;
+    expect(() => {
+      result = check();
+    }).not.toThrow();
+    expect(result?.exitCode).toBe(0);
+  });
+
+  it('still catches a real violation when an untracked directory is present', () => {
+    mkdirSync(join(repo, 'node_modules'), { recursive: true });
+    writeFileSync(join(repo, 'node_modules', 'x.js'), 'x\n', 'utf8');
+    write('src/bad.ts', 'const data = y as any;\n');
+
+    const result = check();
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain('no-any');
+  });
+
+  it('does not crash on a binary file in the working tree', () => {
+    writeFileSync(join(repo, 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(() => check()).not.toThrow();
+  });
+
+  it('does not crash when a reported path has vanished since git looked', () => {
+    // A file deleted between `git status` and the read — a race a long CI
+    // job can genuinely hit.
+    write('src/gone.ts', 'export const a = 1;\n');
+    git('add', '-A');
+    git('commit', '-qm', 'add');
+    rmSync(join(repo, 'src/gone.ts'));
+
+    expect(() => runCheck({ base: 'HEAD~1', format: 'text', repoRoot: repo, runCheckers: false })).not.toThrow();
+  });
+});

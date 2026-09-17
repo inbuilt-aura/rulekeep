@@ -9975,7 +9975,12 @@ function showAtRef(repoRoot, ref, path) {
 }
 function readWorkingTreeFile(repoRoot, path) {
   const absolute = (0, import_node_path3.join)(repoRoot, path);
-  return (0, import_node_fs2.existsSync)(absolute) ? (0, import_node_fs2.readFileSync)(absolute, "utf8") : null;
+  try {
+    if (!(0, import_node_fs2.statSync)(absolute).isFile()) return null;
+    return (0, import_node_fs2.readFileSync)(absolute, "utf8");
+  } catch {
+    return null;
+  }
 }
 function changedPaths(repoRoot, baseRef) {
   const committed = git(["diff", "--name-only", "-z", `${baseRef}...HEAD`], repoRoot);
@@ -9985,7 +9990,10 @@ function changedPaths(repoRoot, baseRef) {
   for (const entry of uncommitted.split("\0")) {
     if (!entry) continue;
     const path = entry.includes(" -> ") ? entry.split(" -> ")[1] : entry.slice(3);
-    if (path) paths.add(path.trim());
+    if (!path) continue;
+    const trimmed = path.trim();
+    if (trimmed === "" || trimmed.endsWith("/")) continue;
+    paths.add(trimmed);
   }
   return [...paths];
 }

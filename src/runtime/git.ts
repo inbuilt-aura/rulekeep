@@ -4,7 +4,7 @@
  * uncommitted in the working tree, each as a FileChange the engine can grade.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FileChange } from '../engine/events.js';
 
@@ -20,9 +20,24 @@ function showAtRef(repoRoot: string, ref: string, path: string): string | null {
   }
 }
 
+/**
+ * Returns null for anything that is not a readable text file.
+ *
+ * `git status` reports an untracked DIRECTORY as a single entry ("node_modules/"),
+ * not its contents, so this is handed real directories on any repo with
+ * untracked folders — which is most of them. Reading one throws EISDIR, and an
+ * unhandled throw here crashed the whole `check` command. A binary file is
+ * likewise not something the rules can grade.
+ */
 function readWorkingTreeFile(repoRoot: string, path: string): string | null {
   const absolute = join(repoRoot, path);
-  return existsSync(absolute) ? readFileSync(absolute, 'utf8') : null;
+  try {
+    if (!statSync(absolute).isFile()) return null;
+    return readFileSync(absolute, 'utf8');
+  } catch {
+    // Missing, unreadable, or vanished between the status call and now.
+    return null;
+  }
 }
 
 /** Paths changed between `baseRef` and the working tree, committed or not, deduplicated. */
@@ -36,7 +51,12 @@ function changedPaths(repoRoot: string, baseRef: string): readonly string[] {
   for (const entry of uncommitted.split('\0')) {
     if (!entry) continue;
     const path = entry.includes(' -> ') ? entry.split(' -> ')[1] : entry.slice(3);
-    if (path) paths.add(path.trim());
+    if (!path) continue;
+    const trimmed = path.trim();
+    // A trailing slash means an untracked DIRECTORY, reported as one entry
+    // rather than its contents ("node_modules/"). There is no file to grade.
+    if (trimmed === '' || trimmed.endsWith('/')) continue;
+    paths.add(trimmed);
   }
   return [...paths];
 }
