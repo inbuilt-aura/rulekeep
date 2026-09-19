@@ -1,0 +1,33 @@
+name: False alarm
+description: Report a rule that fired incorrectly
+title: "false alarm: "
+labels: [false-alarm]
+body:
+  - type: textarea
+    id: rule
+    attributes:
+      label: Rule YAML
+      description: Paste the rule that fired.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: line
+    attributes:
+      label: Line that triggered it
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is this a false alarm?
+      description: Explain the intended behavior and what rulekeep should have done.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: rulekeep version
+    validations:
+      required: true

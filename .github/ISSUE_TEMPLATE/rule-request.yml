@@ -1,0 +1,27 @@
+name: Rule request
+description: Suggest a rule or rule-engine capability
+title: "rule request: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: rule
+    attributes:
+      label: Rule in plain words
+      description: What project convention should rulekeep enforce?
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Where is this written today?
+      description: Link or quote the CLAUDE.md, documentation, or other source of the convention.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example violation
+      description: Show a representative change that should be caught.
+      render: text
+    validations:
+      required: true

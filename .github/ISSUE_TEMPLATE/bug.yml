@@ -1,0 +1,39 @@
+name: Bug report
+description: Report behavior that appears incorrect
+title: "bug: "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: rulekeep version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and version
+      placeholder: Claude Code 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: rulekeep doctor output
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened?
+      description: Include the smallest reproduction and relevant output.
+    validations:
+      required: true
