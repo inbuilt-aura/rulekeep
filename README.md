@@ -1,4 +1,4 @@
-# rulekeep
+# Rulekeep
 
 > **Your project's rules, enforced while the AI works.**
 
