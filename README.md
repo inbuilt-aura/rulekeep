@@ -2,7 +2,7 @@
 
 > **Your project's rules, enforced while the AI works.**
 
-rulekeep turns project conventions into checks that run while an AI coding
+Rulekeep turns project conventions into checks that run while an AI coding
 agent works and again in CI. A broken rule is caught and explained in the
 moment, rather than waiting for review.
 
