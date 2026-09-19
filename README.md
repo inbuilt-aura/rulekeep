@@ -1,15 +1,13 @@
-<title>rulekeep</title>
-
 # rulekeep
 
 > **Your project's rules, enforced while the AI works.**
 
-`rulekeep` is a placeholder name — see [`docs/08-risks-and-decisions.md`](./docs/08-risks-and-decisions.md) Q1.
+rulekeep turns project conventions into checks that run while an AI coding
+agent works and again in CI. A broken rule is caught and explained in the
+moment, rather than waiting for review.
 
-AI coding agents are told a project's rules and break them anyway. rulekeep
-turns those rules into checks that run automatically while the agent works —
-before a command, after an edit, and before it says it's done — so a broken
-rule gets caught and explained in the moment, not in review.
+Today, rulekeep supports Claude Code. Codex and Gemini CLI adapters are planned
+but are not included yet.
 
 ```yaml
 # rulekeep.yaml
@@ -36,16 +34,14 @@ rulekeep: this edit breaks 1 rule.
 agent: rewrites it as `const data: unknown = response;` — and continues
 ```
 
-## Status: installable in Claude Code; not yet dogfooded
+## Status: public pre-release
 
-Everything rulekeep does in Claude Code is built and tested: all six rule
-types, the full hook wiring, the CI command, and the plugin package you can
-install ([Try it](#try-it-right-now) below). `claude plugin validate --strict`
-passes and 190 tests cover it.
+The Claude Code plugin, hook wiring, CI command, trust flow, and six rule types
+are implemented and tested. The repository is public, but version `0.1.0` has
+not been published to npm yet.
 
-What it has **not** had is real use. The remaining work before calling it v0.1
-is dogfooding it on a real project for a couple of weeks and tuning the false
-alarms out ([`docs/04-build-plan.md`](./docs/04-build-plan.md) M4 step 7).
+The remaining release gate is sustained dogfooding on a real project and tuning
+false alarms ([`docs/04-build-plan.md`](./docs/04-build-plan.md) M4 step 7).
 
 | Piece | State |
 | --- | --- |
@@ -54,26 +50,32 @@ alarms out ([`docs/04-build-plan.md`](./docs/04-build-plan.md) M4 step 7).
 | `rulekeep.yaml` parser, with line-numbered errors | ✅ Built |
 | Overrides (`rulekeep-ignore <rule>: <reason>`) | ✅ Built |
 | Claude Code hook wiring (`hook claude-code <event>`) | ✅ Built, contract-tested against real hook payloads |
-| Installable Claude Code plugin (`plugins/claude-code/`) | ✅ Built, `claude plugin validate --strict` passes |
+| Installable Claude Code plugin (`plugins/claude-code/`) | ✅ Built |
 | Skills (`/rulekeep:setup`, `:trust`, `:explain`) | ✅ Built |
 | Checker trust flow (`rulekeep trust`) | ✅ Built |
 | `rulekeep check` — the CI backstop | ✅ Built, drives real `git diff`/`git status` |
 | `rulekeep doctor` | ✅ Built |
-| Dogfooded on a real project | ⬜ Not yet — the next step before v0.1 |
+| Dogfooded on a real project | ⬜ In progress — required before v0.1 |
 | Codex adapter | ⬜ Not built |
 | Gemini CLI adapter | ⬜ Not built |
 
-## The full plan
+## Install the Claude Code plugin
 
-Read [`docs/README.md`](./docs/README.md) first — it's the reading order for
-everything else: why this is worth building, what it does, how it works, the
-milestone-by-milestone build plan, testing, publishing, and the business and
-risk decisions behind it.
+In Claude Code, add this repository as a marketplace and install the plugin:
 
-## Try it right now
+```text
+/plugin marketplace add inbuilt-aura/rulekeep
+/plugin install rulekeep@rulekeep
+```
+
+Start a new session in a repository containing `rulekeep.yaml`, then use
+`/rulekeep:setup` to configure it. Checker rules require explicit approval via
+`/rulekeep:trust`.
+
+## Try the CLI locally
 
 ```bash
-npm install
+npm ci
 npm run build      # produces dist/rulekeep.cjs
 node dist/rulekeep.cjs doctor
 ```
@@ -86,6 +88,12 @@ Claude Code actually sends and reads):
 # In a scratch git repo with a rulekeep.yaml:
 echo '{"session_id":"s1","cwd":".","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git push --force"}}' \
   | node dist/rulekeep.cjs hook claude-code pre-tool-use
+```
+
+For CI, run the command against the changes from a base ref:
+
+```bash
+node dist/rulekeep.cjs check --base origin/main
 ```
 
 ## Development
@@ -101,6 +109,9 @@ The rule engine (`src/engine/`) is pure — no filesystem, no processes, no
 clock — enforced by an ESLint rule. Everything that touches disk or git lives
 in `src/runtime/`. See
 [`docs/03-architecture.md`](./docs/03-architecture.md) for why.
+
+The full design, build plan, testing strategy, and release process are in
+[`docs/README.md`](./docs/README.md).
 
 ## License
 
