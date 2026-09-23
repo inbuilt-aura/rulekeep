@@ -10019,7 +10019,10 @@ function workingTreePaths(repoRoot) {
     paths.add(trimmed);
   }
   try {
-    for (const path of git(["ls-files", "--others", "--exclude-standard", "-z"], repoRoot).split("\0")) {
+    for (const path of git(
+      ["ls-files", "--others", "--exclude-standard", "-z"],
+      repoRoot
+    ).split("\0")) {
       if (path) paths.add(path);
     }
   } catch {
@@ -10307,11 +10310,14 @@ function ensureSessionBaseline(agent, sessionId, repoRoot) {
   const path = (0, import_node_path6.join)(dir, BASELINE_FILE);
   if ((0, import_node_fs4.existsSync)(path)) {
     try {
-      const existing = JSON.parse((0, import_node_fs4.readFileSync)(path, "utf8"));
+      const existing = JSON.parse(
+        (0, import_node_fs4.readFileSync)(path, "utf8")
+      );
       if (existing.repoRoot === repoRoot) return;
     } catch {
     }
-    for (const entry of ["changes.jsonl", RETRY_FILE, GIVEN_UP_FILE]) (0, import_node_fs4.rmSync)((0, import_node_path6.join)(dir, entry), { force: true });
+    for (const entry of ["changes.jsonl", RETRY_FILE, GIVEN_UP_FILE])
+      (0, import_node_fs4.rmSync)((0, import_node_path6.join)(dir, entry), { force: true });
   }
   const paths = {};
   for (const changedPath of workingTreePaths(repoRoot)) {
@@ -10325,7 +10331,10 @@ function readSessionBaseline(agent, sessionId) {
   if (!(0, import_node_fs4.existsSync)(path)) return { repoRoot: "", paths: {} };
   try {
     const data = JSON.parse((0, import_node_fs4.readFileSync)(path, "utf8"));
-    return data.paths && typeof data.paths === "object" ? { repoRoot: typeof data.repoRoot === "string" ? data.repoRoot : "", paths: data.paths } : { repoRoot: "", paths: {} };
+    return data.paths && typeof data.paths === "object" ? {
+      repoRoot: typeof data.repoRoot === "string" ? data.repoRoot : "",
+      paths: data.paths
+    } : { repoRoot: "", paths: {} };
   } catch {
     return { repoRoot: "", paths: {} };
   }
@@ -10360,7 +10369,11 @@ function closeTurn(agent, sessionId, repoRoot) {
   const paths = {};
   for (const path of workingTreePaths(repoRoot))
     paths[path] = readFileOrNull((0, import_node_path6.join)(repoRoot, path));
-  (0, import_node_fs4.writeFileSync)((0, import_node_path6.join)(dir, BASELINE_FILE), JSON.stringify({ repoRoot, paths }), "utf8");
+  (0, import_node_fs4.writeFileSync)(
+    (0, import_node_path6.join)(dir, BASELINE_FILE),
+    JSON.stringify({ repoRoot, paths }),
+    "utf8"
+  );
 }
 function readGivenUp(agent, sessionId) {
   const path = (0, import_node_path6.join)(sessionDir(agent, sessionId), GIVEN_UP_FILE);
