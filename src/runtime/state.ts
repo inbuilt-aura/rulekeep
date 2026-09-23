@@ -3,27 +3,30 @@
  * Keyed by agent + session id so concurrent sessions never collide, and
  * stored in the OS temp folder so it works the same for every agent.
  *
- * THIS FILE IMPLEMENTS THE PRACTICAL SLICE OF THE DESIGN, NOT THE FULL SPEC:
- * the architecture doc describes a git-baseline reconciliation at stop (what
- * the repo looked like at session start, compared against `git status`).
- * That needs git plumbing this pass didn't build. What's here instead is
- * simpler and still real: every after-edit change rulekeep is told about is
- * appended to the session's change log, and `stop` re-checks that whole log.
- * It catches everything the agent changed through its own edit tools; it
- * will not catch a file edited through a raw shell command with no matching
- * PostToolUse event. Closing that gap is the next increment (see
- * docs/03-architecture.md "How changes are detected").
+ * The active change log covers the current turn. A git working-tree baseline
+ * is refreshed after each allowed stop so shell edits are included without
+ * carrying findings into the next turn.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import type { AgentName, FileChange } from '../engine/events.js';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { AgentName, FileChange } from "../engine/events.js";
+import { showAtRef, workingTreePaths } from "./git.js";
 
-const ROOT_DIR_NAME = 'rulekeep';
+const ROOT_DIR_NAME = "rulekeep";
 const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function safe(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return value.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
 export function sessionDir(agent: AgentName, sessionId: string): string {
@@ -35,10 +38,18 @@ function ensureDir(dir: string): void {
 }
 
 /** Appends one FileChange to this session's change log. Idempotent to call repeatedly. */
-export function recordChange(agent: AgentName, sessionId: string, change: FileChange): void {
+export function recordChange(
+  agent: AgentName,
+  sessionId: string,
+  change: FileChange,
+): void {
   const dir = sessionDir(agent, sessionId);
   ensureDir(dir);
-  appendFileSync(join(dir, 'changes.jsonl'), `${JSON.stringify(change)}\n`, 'utf8');
+  appendFileSync(
+    join(dir, "changes.jsonl"),
+    `${JSON.stringify(change)}\n`,
+    "utf8",
+  );
 }
 
 /**
@@ -47,16 +58,19 @@ export function recordChange(agent: AgentName, sessionId: string, change: FileCh
  * path was touched, so it still reflects what the file looked like before
  * the session started editing it).
  */
-export function readChanges(agent: AgentName, sessionId: string): readonly FileChange[] {
-  const path = join(sessionDir(agent, sessionId), 'changes.jsonl');
+export function readChanges(
+  agent: AgentName,
+  sessionId: string,
+): readonly FileChange[] {
+  const path = join(sessionDir(agent, sessionId), "changes.jsonl");
   if (!existsSync(path)) return [];
 
   const firstBefore = new Map<string, string | null>();
   const lastAfter = new Map<string, string | null>();
   const order: string[] = [];
 
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    if (line.trim() === '') continue;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    if (line.trim() === "") continue;
     const change = JSON.parse(line) as FileChange;
     if (!firstBefore.has(change.path)) {
       firstBefore.set(change.path, change.before);
@@ -65,26 +79,167 @@ export function readChanges(agent: AgentName, sessionId: string): readonly FileC
     lastAfter.set(change.path, change.after);
   }
 
-  return order.map((path) => ({ path, before: firstBefore.get(path) ?? null, after: lastAfter.get(path) ?? null }));
+  return order.map((path) => ({
+    path,
+    before: firstBefore.get(path) ?? null,
+    after: lastAfter.get(path) ?? null,
+  }));
 }
 
-const RETRY_FILE = 'stop-retries.json';
+const RETRY_FILE = "stop-retries.json";
+const BASELINE_FILE = "baseline.json";
+const GIVEN_UP_FILE = "given-up.json";
+
+interface Baseline {
+  readonly repoRoot: string;
+  readonly paths: Record<string, string | null>;
+}
+
+export function ensureSessionBaseline(
+  agent: AgentName,
+  sessionId: string,
+  repoRoot: string,
+): void {
+  const dir = sessionDir(agent, sessionId);
+  ensureDir(dir);
+  const path = join(dir, BASELINE_FILE);
+  if (existsSync(path)) {
+    try {
+      const existing = JSON.parse(
+        readFileSync(path, "utf8"),
+      ) as Partial<Baseline>;
+      if (existing.repoRoot === repoRoot) return;
+    } catch {
+      // Rebuild malformed state below.
+    }
+    for (const entry of ["changes.jsonl", RETRY_FILE, GIVEN_UP_FILE])
+      rmSync(join(dir, entry), { force: true });
+  }
+
+  const paths: Record<string, string | null> = {};
+  for (const changedPath of workingTreePaths(repoRoot)) {
+    const absolute = join(repoRoot, changedPath);
+    paths[changedPath] = existsSync(absolute)
+      ? readFileSync(absolute, "utf8")
+      : null;
+  }
+  writeFileSync(path, JSON.stringify({ repoRoot, paths }), "utf8");
+}
+
+export function readSessionBaseline(
+  agent: AgentName,
+  sessionId: string,
+): Baseline {
+  const path = join(sessionDir(agent, sessionId), BASELINE_FILE);
+  if (!existsSync(path)) return { repoRoot: "", paths: {} };
+  try {
+    const data = JSON.parse(readFileSync(path, "utf8")) as Partial<Baseline>;
+    return data.paths && typeof data.paths === "object"
+      ? {
+          repoRoot: typeof data.repoRoot === "string" ? data.repoRoot : "",
+          paths: data.paths,
+        }
+      : { repoRoot: "", paths: {} };
+  } catch {
+    return { repoRoot: "", paths: {} };
+  }
+}
+
+export function changesSinceSessionBaseline(
+  agent: AgentName,
+  sessionId: string,
+  repoRoot: string,
+): readonly FileChange[] {
+  const baseline = readSessionBaseline(agent, sessionId);
+  return workingTreePaths(repoRoot).map((path) => ({
+    path,
+    before: baseline.paths[path] ?? showAtRef(repoRoot, "HEAD", path),
+    after: readFileOrNull(join(repoRoot, path)),
+  }));
+}
+
+function readFileOrNull(path: string): string | null {
+  try {
+    return statSync(path).isFile() ? readFileSync(path, "utf8") : null;
+  } catch {
+    return null;
+  }
+}
+
+export function closeTurn(
+  agent: AgentName,
+  sessionId: string,
+  repoRoot: string,
+): void {
+  const dir = sessionDir(agent, sessionId);
+  const active = join(dir, "changes.jsonl");
+  if (existsSync(active)) {
+    let next = 1;
+    for (const entry of readdirSync(dir)) {
+      const match = /^changes\.(\d+)\.jsonl$/.exec(entry);
+      if (match) next = Math.max(next, Number(match[1]) + 1);
+    }
+    writeFileSync(join(dir, `changes.${next}.jsonl`), readFileSync(active));
+    rmSync(active, { force: true });
+  }
+
+  const paths: Record<string, string | null> = {};
+  for (const path of workingTreePaths(repoRoot))
+    paths[path] = readFileOrNull(join(repoRoot, path));
+  writeFileSync(
+    join(dir, BASELINE_FILE),
+    JSON.stringify({ repoRoot, paths }),
+    "utf8",
+  );
+}
+
+export function readGivenUp(
+  agent: AgentName,
+  sessionId: string,
+): readonly string[] {
+  const path = join(sessionDir(agent, sessionId), GIVEN_UP_FILE);
+  if (!existsSync(path)) return [];
+  try {
+    const data = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    return Array.isArray(data) &&
+      data.every((value): value is string => typeof value === "string")
+      ? data
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addGivenUp(
+  agent: AgentName,
+  sessionId: string,
+  fingerprints: readonly string[],
+): void {
+  const values = new Set([...readGivenUp(agent, sessionId), ...fingerprints]);
+  const dir = sessionDir(agent, sessionId);
+  ensureDir(dir);
+  writeFileSync(join(dir, GIVEN_UP_FILE), JSON.stringify([...values]), "utf8");
+}
 
 export function readStopRetries(agent: AgentName, sessionId: string): number {
   const path = join(sessionDir(agent, sessionId), RETRY_FILE);
   if (!existsSync(path)) return 0;
   try {
-    const data = JSON.parse(readFileSync(path, 'utf8')) as { count?: number };
-    return typeof data.count === 'number' ? data.count : 0;
+    const data = JSON.parse(readFileSync(path, "utf8")) as { count?: number };
+    return typeof data.count === "number" ? data.count : 0;
   } catch {
     return 0;
   }
 }
 
-export function writeStopRetries(agent: AgentName, sessionId: string, count: number): void {
+export function writeStopRetries(
+  agent: AgentName,
+  sessionId: string,
+  count: number,
+): void {
   const dir = sessionDir(agent, sessionId);
   ensureDir(dir);
-  writeFileSync(join(dir, RETRY_FILE), JSON.stringify({ count }), 'utf8');
+  writeFileSync(join(dir, RETRY_FILE), JSON.stringify({ count }), "utf8");
 }
 
 /** Deletes session folders untouched for longer than a week. Call once per session start. */

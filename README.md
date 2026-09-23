@@ -15,7 +15,7 @@ version: 1
 rules:
   - id: no-any
     type: line
-    files: ['src/**/*.ts']
+    files: ["src/**/*.ts"]
     added: '(:\s*any\b|\bas\s+any\b)'
     mode: block
     message: Don't use `any`. Use `unknown` and narrow it.
@@ -43,21 +43,21 @@ not been published to npm yet.
 The remaining release gate is sustained dogfooding on a real project and tuning
 false alarms ([`docs/04-build-plan.md`](./docs/04-build-plan.md) M4 step 7).
 
-| Piece | State |
-| --- | --- |
-| Rule engine (`command`, `line`, `boundary`, `test-guard`, `prose`) | ✅ Built |
-| `checker` rule type (running a real command like `tsc`) | ✅ Built |
-| `rulekeep.yaml` parser, with line-numbered errors | ✅ Built |
-| Overrides (`rulekeep-ignore <rule>: <reason>`) | ✅ Built |
-| Claude Code hook wiring (`hook claude-code <event>`) | ✅ Built, contract-tested against real hook payloads |
-| Installable Claude Code plugin (`plugins/claude-code/`) | ✅ Built |
-| Skills (`/rulekeep:setup`, `:trust`, `:explain`) | ✅ Built |
-| Checker trust flow (`rulekeep trust`) | ✅ Built |
-| `rulekeep check` — the CI backstop | ✅ Built, drives real `git diff`/`git status` |
-| `rulekeep doctor` | ✅ Built |
-| Dogfooded on a real project | ⬜ In progress — required before v0.1 |
-| Codex adapter | ⬜ Not built |
-| Gemini CLI adapter | ⬜ Not built |
+| Piece                                                              | State                                                |
+| ------------------------------------------------------------------ | ---------------------------------------------------- |
+| Rule engine (`command`, `line`, `boundary`, `test-guard`, `prose`) | ✅ Built                                             |
+| `checker` rule type (running a real command like `tsc`)            | ✅ Built                                             |
+| `rulekeep.yaml` parser, with line-numbered errors                  | ✅ Built                                             |
+| Overrides (`rulekeep-ignore <rule>: <reason>`)                     | ✅ Built                                             |
+| Claude Code hook wiring (`hook claude-code <event>`)               | ✅ Built, contract-tested against real hook payloads |
+| Installable Claude Code plugin (`plugins/claude-code/`)            | ✅ Built                                             |
+| Skills (`/rulekeep:setup`, `:trust`, `:explain`)                   | ✅ Built                                             |
+| Checker trust flow (`rulekeep trust`)                              | ✅ Built                                             |
+| `rulekeep check` — the CI backstop                                 | ✅ Built, drives real `git diff`/`git status`        |
+| `rulekeep doctor`                                                  | ✅ Built                                             |
+| Dogfooded on a real project                                        | ⬜ In progress — required before v0.1                |
+| Codex adapter                                                      | ⬜ Not built                                         |
+| Gemini CLI adapter                                                 | ⬜ Not built                                         |
 
 ## Install the Claude Code plugin
 
@@ -95,6 +95,16 @@ For CI, run the command against the changes from a base ref:
 ```bash
 node dist/rulekeep.cjs check --base origin/main
 ```
+
+## Contributing
+
+Contributions are welcome. Start with a focused issue, or fork the repository
+and open a pull request from a short-lived branch. The `main` branch requires
+pull requests and passing CI, so direct pushes are not accepted.
+
+Good first contributions include improving documentation, adding a regression
+test, or reporting a reproducible false alarm. See
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) for the workflow and review checklist.
 
 ## Development
 
