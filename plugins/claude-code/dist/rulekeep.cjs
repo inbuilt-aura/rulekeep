@@ -9820,7 +9820,10 @@ function evaluate(rules, event, extra = []) {
 // src/engine/format.ts
 var TOOL_NAME = "rulekeep";
 var SUBJECTS = {
-  command: { headline: "this command breaks", fix: "Fix the command, then continue." },
+  command: {
+    headline: "this command breaks",
+    fix: "Fix the command, then continue."
+  },
   edit: { headline: "this edit breaks", fix: "Fix the edit, then continue." },
   work: { headline: "this turn leaves", fix: "Fix them before finishing." }
 };
@@ -9832,25 +9835,37 @@ function lineFor(finding) {
   const parts = [`${finding.ruleId} (${finding.mode})${locationOf(finding)}`];
   if (finding.excerpt) parts.push(`    ${finding.excerpt}`);
   parts.push(`    ${finding.message}`);
-  if (finding.override) parts.push(`    (overridden: ${finding.override.reason})`);
+  if (finding.override)
+    parts.push(`    (overridden: ${finding.override.reason})`);
   return parts.join("\n");
 }
-function formatVerdict(verdict, subject) {
-  const active = verdict.findings.filter((finding) => finding.override === void 0);
+function formatVerdict(verdict, subject, existingPaths) {
+  const active = verdict.findings.filter(
+    (finding) => finding.override === void 0
+  );
   if (active.length === 0) return "";
   const noun = active.length === 1 ? "1 rule" : `${active.length} rules`;
   const header = `${TOOL_NAME}: ${SUBJECTS[subject].headline} ${noun}${subject === "work" ? " broken" : ""}.`;
   const body = active.map(lineFor).join("\n\n");
-  const footer = verdict.outcome === "block" ? `${SUBJECTS[subject].fix} If this is a genuine exception, add \`// rulekeep-ignore <rule-id>: <reason>\` on that line.` : "";
+  const canSuggestIgnore = active.some(
+    (finding) => finding.path === void 0 || existingPaths === void 0 || existingPaths.has(finding.path)
+  );
+  const footer = verdict.outcome === "block" && canSuggestIgnore ? `${SUBJECTS[subject].fix} If this is a genuine exception, add \`// rulekeep-ignore <rule-id>: <reason>\` on that line.` : "";
   return [header, "", body, footer].filter((part) => part !== "").join("\n");
 }
 function formatStopSummary(verdict) {
-  const active = verdict.findings.filter((finding) => finding.override === void 0);
-  const overridden = verdict.findings.filter((finding) => finding.override !== void 0);
+  const active = verdict.findings.filter(
+    (finding) => finding.override === void 0
+  );
+  const overridden = verdict.findings.filter(
+    (finding) => finding.override !== void 0
+  );
   const parts = [];
   if (active.length > 0) {
     const noun = active.length === 1 ? "rule is" : `${active.length} rules are`;
-    parts.push(`${TOOL_NAME}: stopped with ${noun} still broken (${active.map((f) => f.ruleId).join(", ")}).`);
+    parts.push(
+      `${TOOL_NAME}: stopped with ${noun} still broken (${active.map((f) => f.ruleId).join(", ")}).`
+    );
   }
   if (overridden.length > 0) {
     const noun = overridden.length === 1 ? "override" : "overrides";
@@ -9964,7 +9979,12 @@ var import_node_child_process2 = require("node:child_process");
 var import_node_fs2 = require("node:fs");
 var import_node_path3 = require("node:path");
 function git(args, repoRoot) {
-  return (0, import_node_child_process2.execFileSync)("git", args, { cwd: repoRoot, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  return (0, import_node_child_process2.execFileSync)("git", args, {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: ["ignore", "pipe", "ignore"]
+  });
 }
 function showAtRef(repoRoot, ref, path) {
   try {
@@ -9982,12 +10002,15 @@ function readWorkingTreeFile(repoRoot, path) {
     return null;
   }
 }
-function changedPaths(repoRoot, baseRef) {
-  const committed = git(["diff", "--name-only", "-z", `${baseRef}...HEAD`], repoRoot);
-  const uncommitted = git(["status", "--porcelain=v1", "-z"], repoRoot);
+function workingTreePaths(repoRoot) {
+  let status;
+  try {
+    status = git(["status", "--porcelain=v1", "-z"], repoRoot);
+  } catch {
+    return [];
+  }
   const paths = /* @__PURE__ */ new Set();
-  for (const path of committed.split("\0")) if (path) paths.add(path);
-  for (const entry of uncommitted.split("\0")) {
+  for (const entry of status.split("\0")) {
     if (!entry) continue;
     const path = entry.includes(" -> ") ? entry.split(" -> ")[1] : entry.slice(3);
     if (!path) continue;
@@ -9995,6 +10018,23 @@ function changedPaths(repoRoot, baseRef) {
     if (trimmed === "" || trimmed.endsWith("/")) continue;
     paths.add(trimmed);
   }
+  try {
+    for (const path of git(["ls-files", "--others", "--exclude-standard", "-z"], repoRoot).split("\0")) {
+      if (path) paths.add(path);
+    }
+  } catch {
+  }
+  return [...paths];
+}
+function changedPaths(repoRoot, baseRef) {
+  const committed = git(
+    ["diff", "--name-only", "-z", `${baseRef}...HEAD`],
+    repoRoot
+  );
+  const uncommitted = workingTreePaths(repoRoot);
+  const paths = /* @__PURE__ */ new Set();
+  for (const path of committed.split("\0")) if (path) paths.add(path);
+  for (const path of uncommitted) paths.add(path);
   return [...paths];
 }
 function changesSinceRef(repoRoot, baseRef) {
@@ -10163,6 +10203,7 @@ function runDoctor(repoRoot) {
 
 // src/cli/hookClaudeCode.ts
 var import_node_fs6 = require("node:fs");
+var import_node_path8 = require("node:path");
 
 // src/adapters/claude-code.ts
 var SHELL_TOOLS = /* @__PURE__ */ new Set(["Bash", "PowerShell"]);
@@ -10229,8 +10270,12 @@ function ensureDir(dir) {
 function recordChange(agent, sessionId, change) {
   const dir = sessionDir(agent, sessionId);
   ensureDir(dir);
-  (0, import_node_fs4.appendFileSync)((0, import_node_path6.join)(dir, "changes.jsonl"), `${JSON.stringify(change)}
-`, "utf8");
+  (0, import_node_fs4.appendFileSync)(
+    (0, import_node_path6.join)(dir, "changes.jsonl"),
+    `${JSON.stringify(change)}
+`,
+    "utf8"
+  );
 }
 function readChanges(agent, sessionId) {
   const path = (0, import_node_path6.join)(sessionDir(agent, sessionId), "changes.jsonl");
@@ -10247,9 +10292,92 @@ function readChanges(agent, sessionId) {
     }
     lastAfter.set(change.path, change.after);
   }
-  return order.map((path2) => ({ path: path2, before: firstBefore.get(path2) ?? null, after: lastAfter.get(path2) ?? null }));
+  return order.map((path2) => ({
+    path: path2,
+    before: firstBefore.get(path2) ?? null,
+    after: lastAfter.get(path2) ?? null
+  }));
 }
 var RETRY_FILE = "stop-retries.json";
+var BASELINE_FILE = "baseline.json";
+var GIVEN_UP_FILE = "given-up.json";
+function ensureSessionBaseline(agent, sessionId, repoRoot) {
+  const dir = sessionDir(agent, sessionId);
+  ensureDir(dir);
+  const path = (0, import_node_path6.join)(dir, BASELINE_FILE);
+  if ((0, import_node_fs4.existsSync)(path)) {
+    try {
+      const existing = JSON.parse((0, import_node_fs4.readFileSync)(path, "utf8"));
+      if (existing.repoRoot === repoRoot) return;
+    } catch {
+    }
+    for (const entry of ["changes.jsonl", RETRY_FILE, GIVEN_UP_FILE]) (0, import_node_fs4.rmSync)((0, import_node_path6.join)(dir, entry), { force: true });
+  }
+  const paths = {};
+  for (const changedPath of workingTreePaths(repoRoot)) {
+    const absolute = (0, import_node_path6.join)(repoRoot, changedPath);
+    paths[changedPath] = (0, import_node_fs4.existsSync)(absolute) ? (0, import_node_fs4.readFileSync)(absolute, "utf8") : null;
+  }
+  (0, import_node_fs4.writeFileSync)(path, JSON.stringify({ repoRoot, paths }), "utf8");
+}
+function readSessionBaseline(agent, sessionId) {
+  const path = (0, import_node_path6.join)(sessionDir(agent, sessionId), BASELINE_FILE);
+  if (!(0, import_node_fs4.existsSync)(path)) return { repoRoot: "", paths: {} };
+  try {
+    const data = JSON.parse((0, import_node_fs4.readFileSync)(path, "utf8"));
+    return data.paths && typeof data.paths === "object" ? { repoRoot: typeof data.repoRoot === "string" ? data.repoRoot : "", paths: data.paths } : { repoRoot: "", paths: {} };
+  } catch {
+    return { repoRoot: "", paths: {} };
+  }
+}
+function changesSinceSessionBaseline(agent, sessionId, repoRoot) {
+  const baseline = readSessionBaseline(agent, sessionId);
+  return workingTreePaths(repoRoot).map((path) => ({
+    path,
+    before: baseline.paths[path] ?? showAtRef(repoRoot, "HEAD", path),
+    after: readFileOrNull((0, import_node_path6.join)(repoRoot, path))
+  }));
+}
+function readFileOrNull(path) {
+  try {
+    return (0, import_node_fs4.statSync)(path).isFile() ? (0, import_node_fs4.readFileSync)(path, "utf8") : null;
+  } catch {
+    return null;
+  }
+}
+function closeTurn(agent, sessionId, repoRoot) {
+  const dir = sessionDir(agent, sessionId);
+  const active = (0, import_node_path6.join)(dir, "changes.jsonl");
+  if ((0, import_node_fs4.existsSync)(active)) {
+    let next = 1;
+    for (const entry of (0, import_node_fs4.readdirSync)(dir)) {
+      const match = /^changes\.(\d+)\.jsonl$/.exec(entry);
+      if (match) next = Math.max(next, Number(match[1]) + 1);
+    }
+    (0, import_node_fs4.writeFileSync)((0, import_node_path6.join)(dir, `changes.${next}.jsonl`), (0, import_node_fs4.readFileSync)(active));
+    (0, import_node_fs4.rmSync)(active, { force: true });
+  }
+  const paths = {};
+  for (const path of workingTreePaths(repoRoot))
+    paths[path] = readFileOrNull((0, import_node_path6.join)(repoRoot, path));
+  (0, import_node_fs4.writeFileSync)((0, import_node_path6.join)(dir, BASELINE_FILE), JSON.stringify({ repoRoot, paths }), "utf8");
+}
+function readGivenUp(agent, sessionId) {
+  const path = (0, import_node_path6.join)(sessionDir(agent, sessionId), GIVEN_UP_FILE);
+  if (!(0, import_node_fs4.existsSync)(path)) return [];
+  try {
+    const data = JSON.parse((0, import_node_fs4.readFileSync)(path, "utf8"));
+    return Array.isArray(data) && data.every((value) => typeof value === "string") ? data : [];
+  } catch {
+    return [];
+  }
+}
+function addGivenUp(agent, sessionId, fingerprints) {
+  const values = /* @__PURE__ */ new Set([...readGivenUp(agent, sessionId), ...fingerprints]);
+  const dir = sessionDir(agent, sessionId);
+  ensureDir(dir);
+  (0, import_node_fs4.writeFileSync)((0, import_node_path6.join)(dir, GIVEN_UP_FILE), JSON.stringify([...values]), "utf8");
+}
 function readStopRetries(agent, sessionId) {
   const path = (0, import_node_path6.join)(sessionDir(agent, sessionId), RETRY_FILE);
   if (!(0, import_node_fs4.existsSync)(path)) return 0;
@@ -10304,13 +10432,15 @@ var AGENT = "claude-code";
 function repoRootOf(input) {
   return process.env.CLAUDE_PROJECT_DIR ?? input.cwd;
 }
-function readFileOrNull(absolutePath) {
+function readFileOrNull2(absolutePath) {
   return (0, import_node_fs6.existsSync)(absolutePath) ? (0, import_node_fs6.readFileSync)(absolutePath, "utf8") : null;
 }
 function ruleReminder(repoRoot) {
   const loaded = loadConfig(repoRoot);
   if (!loaded.ok || loaded.config.rules.length === 0) return void 0;
-  const lines = loaded.config.rules.filter((rule) => rule.mode !== "off").map((rule) => `- ${rule.id} (${rule.mode})${rule.message ? `: ${rule.message}` : ""}`);
+  const lines = loaded.config.rules.filter((rule) => rule.mode !== "off").map(
+    (rule) => `- ${rule.id} (${rule.mode})${rule.message ? `: ${rule.message}` : ""}`
+  );
   if (lines.length === 0) return void 0;
   return `rulekeep rules for this repo:
 ${lines.join("\n")}`;
@@ -10323,15 +10453,21 @@ function checkerFindings(loaded, event) {
 function handleSessionStart(input) {
   cleanupStaleSessions();
   const repoRoot = repoRootOf(input);
+  ensureSessionBaseline(AGENT, input.session_id, repoRoot);
   const loaded = loadConfig(repoRoot);
   const notice = loaded.ok ? untrustedNotice(loaded.path, checkerRulesOf(loaded.config)) : void 0;
   const reminder = input.source === "compact" ? ruleReminder(repoRoot) : void 0;
-  const parts = [notice, reminder].filter((part) => part !== void 0);
-  return toClaudeSessionStartOutput(parts.length > 0 ? parts.join("\n\n") : void 0);
+  const parts = [notice, reminder].filter(
+    (part) => part !== void 0
+  );
+  return toClaudeSessionStartOutput(
+    parts.length > 0 ? parts.join("\n\n") : void 0
+  );
 }
 function handlePreToolUse(input) {
   const repoRoot = repoRootOf(input);
   const toolName = input.tool_name ?? "";
+  ensureSessionBaseline(AGENT, input.session_id, repoRoot);
   if (SHELL_TOOLS.has(toolName)) {
     const command = input.tool_input?.command ?? "";
     const loaded = loadConfig(repoRoot);
@@ -10343,12 +10479,20 @@ function handlePreToolUse(input) {
       repoRoot,
       command
     });
-    return toClaudeBeforeCommandOutput(verdict, formatVerdict(verdict, "command"));
+    return toClaudeBeforeCommandOutput(
+      verdict,
+      formatVerdict(verdict, "command")
+    );
   }
   if (EDIT_TOOLS.has(toolName) && input.tool_use_id) {
     const filePath = input.tool_input?.file_path;
     if (filePath) {
-      saveSnapshot(AGENT, input.session_id, input.tool_use_id, readFileOrNull(filePath));
+      saveSnapshot(
+        AGENT,
+        input.session_id,
+        input.tool_use_id,
+        readFileOrNull2(filePath)
+      );
     }
   }
   return {};
@@ -10361,8 +10505,12 @@ function handlePostToolUse(input) {
   if (!filePath || !input.tool_use_id) return {};
   const snapshot = takeSnapshot(AGENT, input.session_id, input.tool_use_id);
   const before = snapshot.found ? snapshot.content : null;
-  const after = readFileOrNull(filePath);
-  const change = { path: toRepoRelative(filePath, repoRoot), before, after };
+  const after = readFileOrNull2(filePath);
+  const change = {
+    path: toRepoRelative(filePath, repoRoot),
+    before,
+    after
+  };
   recordChange(AGENT, input.session_id, change);
   const loaded = loadConfig(repoRoot);
   if (!loaded.ok) return {};
@@ -10373,14 +10521,31 @@ function handlePostToolUse(input) {
     repoRoot,
     changes: [change]
   };
-  const verdict = evaluate(loaded.config.rules, event, checkerFindings(loaded, event));
+  const verdict = evaluate(
+    loaded.config.rules,
+    event,
+    checkerFindings(loaded, event)
+  );
   return toClaudeAfterEditOutput(verdict, formatVerdict(verdict, "edit"));
 }
 function handleStop(input) {
   const repoRoot = repoRootOf(input);
   const loaded = loadConfig(repoRoot);
   if (!loaded.ok) return {};
-  const changes = readChanges(AGENT, input.session_id);
+  const recorded = readChanges(AGENT, input.session_id).map((change) => ({
+    ...change,
+    after: readFileOrNull2((0, import_node_path8.join)(repoRoot, change.path))
+  }));
+  const shellChanges = changesSinceSessionBaseline(
+    AGENT,
+    input.session_id,
+    repoRoot
+  );
+  const changesByPath = /* @__PURE__ */ new Map();
+  for (const change of [...recorded, ...shellChanges]) {
+    if (change.before !== change.after) changesByPath.set(change.path, change);
+  }
+  const changes = [...changesByPath.values()];
   const retry = input.stop_hook_active ? readStopRetries(AGENT, input.session_id) : 0;
   const event = {
     kind: "stop",
@@ -10391,16 +10556,58 @@ function handleStop(input) {
     finalMessage: input.last_assistant_message ?? null,
     retry
   };
-  const verdict = evaluate(loaded.config.rules, event, checkerFindings(loaded, event));
+  const rawVerdict = evaluate(
+    loaded.config.rules,
+    event,
+    checkerFindings(loaded, event)
+  );
+  const givenUp = new Set(readGivenUp(AGENT, input.session_id));
+  const activeFindings = rawVerdict.findings.filter(
+    (finding) => !givenUp.has(fingerprintOf(finding))
+  );
+  const verdict = {
+    findings: activeFindings,
+    outcome: outcomeOf(activeFindings)
+  };
   const isBlocking = verdict.outcome === "block";
   const withinBudget = retry < loaded.config.maxStopRetries;
   if (isBlocking && withinBudget) {
     writeStopRetries(AGENT, input.session_id, retry + 1);
-    return toClaudeStopOutput(verdict, formatVerdict(verdict, "work"), void 0);
+    return toClaudeStopOutput(
+      verdict,
+      formatVerdict(
+        verdict,
+        "work",
+        new Set(
+          changes.filter((change) => change.after !== null).map((change) => change.path)
+        )
+      ),
+      void 0
+    );
+  }
+  if (isBlocking) {
+    addGivenUp(
+      AGENT,
+      input.session_id,
+      verdict.findings.filter((finding) => finding.mode === "block").map(fingerprintOf)
+    );
   }
   writeStopRetries(AGENT, input.session_id, 0);
   const summary = formatStopSummary(verdict);
-  return toClaudeStopOutput(verdict, "", summary.length > 0 ? summary : void 0);
+  const output = toClaudeStopOutput(
+    verdict,
+    "",
+    summary.length > 0 ? summary : void 0
+  );
+  closeTurn(AGENT, input.session_id, repoRoot);
+  return output;
+}
+function fingerprintOf(finding) {
+  return JSON.stringify([
+    finding.ruleId,
+    finding.path ?? "",
+    finding.excerpt ?? ""
+  ]);
 }
 
 // src/cli/stdin.ts
@@ -10457,7 +10664,7 @@ ${listing}` };
 
 // src/runtime/record.ts
 var import_node_fs7 = require("node:fs");
-var import_node_path8 = require("node:path");
+var import_node_path9 = require("node:path");
 function safe2(value) {
   return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
 }
@@ -10465,10 +10672,10 @@ function recordPayload(agent, event, payload) {
   const dir = process.env.RULEKEEP_RECORD;
   if (!dir) return;
   try {
-    const target = (0, import_node_path8.join)(dir, safe2(agent));
+    const target = (0, import_node_path9.join)(dir, safe2(agent));
     (0, import_node_fs7.mkdirSync)(target, { recursive: true });
     const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    (0, import_node_fs7.writeFileSync)((0, import_node_path8.join)(target, `${safe2(event)}-${stamp}.json`), `${JSON.stringify(payload, null, 2)}
+    (0, import_node_fs7.writeFileSync)((0, import_node_path9.join)(target, `${safe2(event)}-${stamp}.json`), `${JSON.stringify(payload, null, 2)}
 `, "utf8");
   } catch {
   }
